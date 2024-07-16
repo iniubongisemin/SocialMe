@@ -39,8 +39,10 @@ SECRET_KEY = getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = getenv('DEBUG', 'False') == True
 
-ALLOWED_HOSTS = getenv('DJANGO_ALLOWED_HOSTS', 
-                       '127.0.0.1', 'localhost').split(',') 
+# ALLOWED_HOSTS = getenv('DJANGO_ALLOWED_HOSTS', 
+#                        '127.0.0.1', 'localhost').split(',') 
+
+ALLOWED_HOSTS = ['localhost','127.0.0.1','.railway.app','.vercel.app']
 
 
 # Application definition
@@ -63,7 +65,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
 ]
 
-# AUTH_USER_MODEL = 'users.UserAccount'
+AUTH_USER_MODEL = 'users.UserAccount'
 
 SOCIAL_AUTH_JSONFIELD_ENABLED = True
 
@@ -238,7 +240,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'static'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -251,8 +253,8 @@ AUTHENTICATION_BACKENDS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        # 'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'users.authentication.CustomJWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # 'users.authentication.CustomJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
