@@ -10,6 +10,10 @@ from .views import (
     ActivateUserView,
     ResendOTPView,
 )
+from crmpipeline.views import (
+    MerchantView,
+)
+from users.views import CreateCompanyView
 
 urlpatterns = [
     re_path(
@@ -25,4 +29,6 @@ urlpatterns = [
     path('activate/', ActivateUserView.as_view(), name='activate'),
     path('resend-otp/', ResendOTPView.as_view(), name='send-otp'),
     # path('validate-otp/', ValidateOTP.as_view(), name='validate-otp')
+    path("create-merchant/", MerchantView.as_view(), name="create_merchant"),
+    path("create-company/", CreateCompanyView.as_view(), name="create_company"),
 ]

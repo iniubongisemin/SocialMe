@@ -18,6 +18,8 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 ) 
+from users.serializers import CreateCompanySerializer
+from users.models import Company
 import random
 
 class CustomProviderAuthView(ProviderAuthView):
@@ -271,6 +273,69 @@ class ResendOTPView(APIView):
 
         return Response({'message': ('OTP resent successfully.')}, status=status.HTTP_200_OK)
     
+class CreateCompanyView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):  # create a new company
+            serializer = CreateCompanySerializer(data=request.data, context={"request": request})
+            serializer.is_valid(raise_exception=True)
+            validated_data = serializer.validated_data
+
+            company = Company.create_company(user=request.user, validated_data=validated_data)
+
+            res_data = {"status": "Success",
+                        "data": {
+                            "id": company.id,
+                            "company_name": validated_data.get("company_name"),
+                        },
+                    }
+
+            return Response(res_data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # class LoginWithOTP(APIView):
 #     @extend_schema(

@@ -29,6 +29,8 @@ if path.isfile(dotenv_file):
 
 DEVELOPMENT_MODE = getenv('DEVELOPMENT_MODE', 'False') == 'True'
 
+TIME_ZONE = 'Africa/Lagos'
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -37,7 +39,8 @@ DEVELOPMENT_MODE = getenv('DEVELOPMENT_MODE', 'False') == 'True'
 SECRET_KEY = getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = getenv('DEBUG', 'False') == True
+# DEBUG = getenv('DEBUG', 'False') == True
+DEBUG = True
 
 # ALLOWED_HOSTS = getenv('DJANGO_ALLOWED_HOSTS', 
 #                        '127.0.0.1', 'localhost').split(',') 
@@ -63,6 +66,7 @@ INSTALLED_APPS = [
     'social_django',
     'users',
     'drf_spectacular',
+    'crmpipeline', 
 ]
 
 AUTH_USER_MODEL = 'users.UserAccount'
@@ -152,6 +156,15 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
+# CELERY
+CELERY_ACCEPT_CONTENT = ["application/json"]
+CELERY_BROKER_URL = "redis://127.0.0.1:6379"
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TASK_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
+
 # Email Settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
@@ -164,7 +177,8 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
 DOMAIN = os.environ.get('DOMAIN')
-SITE_NAME = 'SocialMe'
+# SITE_NAME = 'SocialMe'
+SITE_NAME = 'PayBox360'
 
 
 SPECTACULAR_SETTINGS = {
@@ -253,8 +267,8 @@ AUTHENTICATION_BACKENDS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-        # 'users.authentication.CustomJWTAuthentication',
+        # 'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'users.authentication.CustomJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -271,7 +285,7 @@ DJOSER = {
     'PASSWORD_RESET_CONFIRM_RETYPE': True,
     'TOKEN_MODEL': None,
     # 'SOCIAL_AUTH_ALLOWED_REDIRECT_URIS': getenv('REDIRECT_URLS').split(','),
-    'SOCIAL_AUTH_ALLOWED_REDIRECT_URIS': 'https://zlide-team-2.vercel.app/auth/google, http://127.0.0.1:8000/auth/google, http://127.0.0.1:5173/auth/google, http://localhost:5174/auth/google, http://localhost:5174/auth/google, http://localhost:5174/auth/google, https://zlide.up.railway.app/auth/google',
+    'SOCIAL_AUTH_ALLOWED_REDIRECT_URIS': 'https://socialme.vercel.app/auth/google, http://127.0.0.1:8000/auth/google, http://127.0.0.1:5173/auth/google, http://localhost:5174/auth/google, http://localhost:5174/auth/google, http://localhost:5174/auth/google, https://socialme.up.railway.app/auth/google, http://127.0.0.1:8000/auth/facebook',
 }
 
 # Default primary key field type
