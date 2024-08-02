@@ -28,6 +28,7 @@ class Pipeline(models.Model):
         ("DEFAULT", "DEFAULT"),
         ("CUSTOM", "CUSTOM"),
     ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
     pipeline_type = models.CharField(max_length=100, choices=PIPELINE_TYPE_CHOICES, default="DEFAULT")
@@ -107,7 +108,7 @@ class Deal(models.Model):
     contact_person = models.CharField(max_length=100)
     value = models.CharField(max_length=100)
     product = models.CharField(max_length=100, choices=PRODUCT_VERTICALS_CHOICES)
-    start_date = models.DateTimeField(auto_now_add=True)
+    start_date = models.DateTimeField             (auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     expected_close_date = models.DateTimeField(auto_now_add=True)
     phone_num = models.CharField(max_length=50)
@@ -115,7 +116,7 @@ class Deal(models.Model):
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
     # sales_officer = models.ForeignKey(SalesOfficer, on_delete=models.CASCADE)
-
+    
     class Meta:
         verbose_name = "DEAL"
         verbose_name_plural = "DEAL"
@@ -258,9 +259,9 @@ class Lead(models.Model):
         ("COLD", "COLD"),
     ]
 
+    name = models.CharField(max_length=100, blank=True, null=True)
     phone_number = models.CharField(max_length=100, blank=True, null=True)
     email_address = models.EmailField()
-    name = models.CharField(max_length=100, blank=True, null=True)
     company = models.CharField(max_length=100, blank=True, null=True)
     stage = models.ForeignKey(Stage, on_delete=models.CASCADE, blank=True, null=True)
     address = models.CharField(max_length=100, blank=True, null=True)
@@ -268,6 +269,13 @@ class Lead(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "LEAD"
+        verbose_name = "LEADS"
+
+    def __str__(self):
+        return self.name
 
 class DealProgression(models.Model):
     STATUS_CHOICES = [
@@ -294,90 +302,7 @@ class DealProgression(models.Model):
 
     def __str__(self):
         return f"Deal progression for {self.name}"
-
-
-class LeadsDataUpload(models.Model):
-    leads_file = models.FileField(upload_to="leads_file", blank=True, null=True)
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
-
-    # created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"LeadsDataUploaded {self.id}"
-
-    class Meta:
-        verbose_name = "LEADS DATA UPLOAD"
-        verbose_name_plural = "LEADS DATA UPLOADS"
-
-
-class HeadOfSales(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255)
-    email = models.EmailField()
-    phone_number = models.CharField(max_length=100)
-    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
-
-    def __str__(self):
-        return self.name
     
-
-class DealPipeline(models.Model):
-    name = models.CharField(max_length=255)
-    deal = models.ForeignKey(Deal, on_delete=models.CASCADE, related_name="deal_pipeline")
-    order = models.IntegerField(default=0)
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
-
-    class Meta:
-        verbose_name = "DEAL PIPELINE"
-        verbose_name_plural = "DEAL PIPELINES"
-
-
-class MerchantDealPipeline(models.Model):
-    merchant = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="merchant_pipeline")
-    name = models.CharField(max_length=100)
-    order = models.IntegerField(default=0)
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
-
-    class Meta:
-        verbose_name = "MERCHANT DEAL PIPELINE"
-        verbose_name_plural = "MERCHANT DEAL PIPELINES"
-
-    def __str__(self):
-        return self.name
-
-    @classmethod
-    def create_default_pipelines(cls, merchant):
-        default_pipelines = [
-            "Qualified",
-            "Demo Scheduled",
-            "Proposal Made",
-            "Invoice",
-        ]
-
-        try:
-            merchant_pipeline = cls.objects.get(merchant=merchant)
-            return merchant_pipeline
-        except cls.DoesNotExist:
-            pass
-
-        for index, pipeline in enumerate(default_pipelines):
-            merchant_pipeline = cls.objects.create(
-                merchant=merchant, name=pipeline, order=index
-            )
-        return merchant_pipeline
-    
-    @classmethod
-    def create_pipeline(cls, merchant, name, order):
-        merchant_pipeline = cls.objects.create(merchant=merchant, name=name, order=order)
-        return merchant_pipeline
-
 
 class Activity(models.Model):
     STATUS_CHOICES = [
@@ -439,7 +364,7 @@ class TaskNotification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user} about {self.task}"
-
+    
 
 class TeamMemberRole(models.Model):
     ROLES = [
@@ -456,8 +381,8 @@ class TeamMemberRole(models.Model):
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
 
     class Meta:
-        verbose_name = "TEAM MEMBER PERMISSION"
-        verbose_name_plural = "TEAM MEMBER PERMISSIONS"
+        verbose_name = "TEAM MEMBER ROLE"
+        verbose_name_plural = "TEAM MEMBER ROLES"
 
         def __str__(self):
             return self.name
@@ -491,37 +416,6 @@ class TeamMemberRolePermission(models.Model):
 
     def __str__(self):
         return f"{self.role} Permissions"
-
-
-class TeamMember(models.Model):
-    merchant = models.ForeignKey(Company, on_delete=models.CASCADE, null=True)
-    member = models.ForeignKey(SalesOfficer, on_delete=models.CASCADE, null=True)
-    role = models.ForeignKey(TeamMemberRolePermission, on_delete=models.CASCADE, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ("merchant", "member")
-        verbose_name = "TEAM MEMBER"
-        # verbose_names = "TEAM MEMBERS"
-
-    def __str__(self):
-        return f"{self.member.user.email} ({self.role})"
-
-    @classmethod
-    def create_record(cls, member, role, merchant, activity=None, task=None):
-        team_member = cls.objects.create(merchant=merchant, member=member, role=role)
-
-        if activity and task:
-            activity.team_members.add(team_member) and task.team_members.add(team_member)
-        return team_member
-    
-    @classmethod
-    def get_salesofficer_team_members(cls, sales_officer):
-        sales_officer = get_object_or_404(SalesOfficer, user=sales_officer)
-        return cls.objects.filter(
-            merchant=sales_officer.company, role__in=["ADMIN", "STAFF"]
-        )
     
 
 class DealsComment(models.Model):
@@ -542,68 +436,140 @@ class DealsComment(models.Model):
         return f"{self.id}"
 
 
-class TaskComment(models.Model):
-    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="comments")
-    sales_officer = models.ForeignKey(SalesOfficer, on_delete=models.CASCADE, related_name="task_comments")
-    comment = models.TextField()
-    parent_comment = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
-    show_as_single_comment = models.BooleanField(default=True)
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+# class TaskComment(models.Model):
+#     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="comments")
+#     sales_officer = models.ForeignKey(SalesOfficer, on_delete=models.CASCADE, related_name="task_comments")
+#     comment = models.TextField()
+#     parent_comment = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
+#     show_as_single_comment = models.BooleanField(default=True)
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+#     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
 
-    class Meta:
-        verbose_name = "TASK COMMENT"
-        verbose_name_plural = "TASK COMMENTS"
+#     class Meta:
+#         verbose_name = "TASK COMMENT"
+#         verbose_name_plural = "TASK COMMENTS"
 
-    def __str__(self):
-        return f"{self.id}"    
+#     def __str__(self):
+#         return f"{self.id}"    
 
 
-class DealRequirement(models.Model):
-    custom_fields = ArrayField(models.JSONField(), blank=True, null=True)
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+# class LeadsDataUpload(models.Model):
+#     leads_file = models.FileField(upload_to="leads_file", blank=True, null=True)
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+#     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
 
-    class Meta:
-        verbose_name = "DEAL REQUIREMENT"
-        verbose_name_plural = "DEAL REQUIREMENTS"
+#     # created_at = models.DateTimeField(auto_now_add=True)
 
-        def __str__(self):
-            return f"{self.id}"
+#     def __str__(self):
+#         return f"LeadsDataUploaded {self.id}"
+
+#     class Meta:
+#         verbose_name = "LEADS DATA UPLOAD"
+#         verbose_name_plural = "LEADS DATA UPLOADS"
         
 
-class EmaiLog(models.Model):
+# class EmaiLog(models.Model):
     
-    SUCCESS = "success"
-    FAILURE = "failure"
+#     SUCCESS = "success"
+#     FAILURE = "failure"
 
-    STATUS_CHOICES = [
-        ("success", "Success"),
-        ("failure", "Failure"),
-    ]
+#     STATUS_CHOICES = [
+#         ("success", "Success"),
+#         ("failure", "Failure"),
+#     ]
 
-    subject = models.CharField(max_length=255, null=True, blank=True)
-    message = models.TextField(null=True, blank=True)
-    recipient = models.EmailField()
-    sender = models.EmailField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=FAILURE)
-    sent_at = models.DateTimeField(auto_now_add=True)
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+#     subject = models.CharField(max_length=255, null=True, blank=True)
+#     message = models.TextField(null=True, blank=True)
+#     recipient = models.EmailField()
+#     sender = models.EmailField()
+#     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=FAILURE)
+#     sent_at = models.DateTimeField(auto_now_add=True)
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+#     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
 
-    class Meta:
-        verbose_name = "Email Log"
-        verbose_name_plural = "Email Logs"
+#     class Meta:
+#         verbose_name = "Email Log"
+#         verbose_name_plural = "Email Logs"
 
-    def __str__(self):
-        return f"Subject: {self.subject}, Recipient: {self.recipient}, Status: {self.status}"
+#     def __str__(self):
+#         return f"Subject: {self.subject}, Recipient: {self.recipient}, Status: {self.status}"
 
 
-class TaskSchedule(models.Model):
-    pass
+# class TaskSchedule(models.Model):
+#     pass
 
-class Report(models.Model):
-    pass
+
+# class Report(models.Model):
+#     pass
+    
+
+# class DealRequirement(models.Model):
+#     custom_fields = ArrayField(models.JSONField(), blank=True, null=True)
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+#     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+
+#     class Meta:
+#         verbose_name = "DEAL REQUIREMENT"
+#         verbose_name_plural = "DEAL REQUIREMENTS"
+
+#         def __str__(self):
+#             return f"{self.id}"
+
+
+# class DealPipeline(models.Model):
+#     name = models.CharField(max_length=255)
+#     deal = models.ForeignKey(Deal, on_delete=models.CASCADE, related_name="deal_pipeline")
+#     order = models.IntegerField(default=0)
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+#     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+
+#     class Meta:
+#         verbose_name = "DEAL PIPELINE"
+#         verbose_name_plural = "DEAL PIPELINES"
+
+
+# class MerchantDealPipeline(models.Model):
+#     merchant = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="merchant_pipeline")
+#     name = models.CharField(max_length=100)
+#     order = models.IntegerField(default=0)
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+#     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+
+#     class Meta:
+#         verbose_name = "MERCHANT DEAL PIPELINE"
+#         verbose_name_plural = "MERCHANT DEAL PIPELINES"
+
+#     def __str__(self):
+#         return self.name
+
+#     @classmethod
+#     def create_default_pipelines(cls, merchant):
+#         default_pipelines = [
+#             "Qualified",
+#             "Demo Scheduled",
+#             "Proposal Made",
+#             "Invoice",
+#         ]
+
+#         try:
+#             merchant_pipeline = cls.objects.get(merchant=merchant)
+#             return merchant_pipeline
+#         except cls.DoesNotExist:
+#             pass
+
+#         for index, pipeline in enumerate(default_pipelines):
+#             merchant_pipeline = cls.objects.create(
+#                 merchant=merchant, name=pipeline, order=index
+#             )
+#         return merchant_pipeline
+    
+#     @classmethod
+#     def create_pipeline(cls, merchant, name, order):
+#         merchant_pipeline = cls.objects.create(merchant=merchant, name=name, order=order)
+#         return merchant_pipeline

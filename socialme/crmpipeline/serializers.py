@@ -1,9 +1,9 @@
 from rest_framework import serializers
 from users.serializers import CompanySerializer
 from users.models import Company, TeamMember
-from crmpipeline.models import (SalesOfficer, Activity, Deal, DealProgression, HeadOfSales, LeadsDataUpload, Pipeline, Stage, Task, \
-    TaskNotification, TeamMemberPermission, TeamMemberRole, TeamMemberRolePermission)
-
+from crmpipeline.models import (SalesOfficer, Activity, Deal, DealProgression, Pipeline, Stage, Task, \
+    TaskNotification, TeamMemberPermission, TeamMemberRole, TeamMemberRolePermission, Lead, # LeadsDataUpload,
+    )
 
 
 class StageSerializer(serializers.ModelSerializer):
@@ -39,18 +39,20 @@ class DealSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Deal
-        fields = ('deal_title', 'description', 'merchant', 'sales_officer', 'label', 'industry',
-                  'deal_status', 'team_member', 'pipeline_type', 'pipeline', 'contact_person', 'value', 'product',
-                  'start_date', 'updated_at', 'expected_close_date', 'phone_num', 'email')
+        fields = (
+            'deal_title', 'description', 'merchant', 'sales_officer', 'label', 'industry',
+            'deal_status', 'team_member', 'pipeline_type', 'pipeline', 'contact_person', 'value', 
+            'product', 'start_date', 'updated_at', 'expected_close_date', 'phone_num', 'email'
+        )
 
 
-
-
-class HeadOfSalesSerializer(serializers.ModelSerializer):
-
+class LeadSerializer(serializers.ModelSerializer):
     class Meta:
-        model = HeadOfSales
-        fields = ('name', 'email', 'phone_number')
+        model = Lead
+        fields = (
+        "id", "name", "phone_number", "email_address", "company",
+        "stage", "address", "label",
+    )
 
 
 class PipelineSerializer(serializers.ModelSerializer):
@@ -206,7 +208,7 @@ class CreateDealSerializer(serializers.ModelSerializer):
             deal.save()
         return deal
 
-        
+
 class CreateMerchantSerializer(serializers.ModelSerializer):
     name = serializers.CharField()
     merchant = CompanySerializer()
@@ -239,8 +241,8 @@ class OnboardSalesOfficerSerializer(serializers.ModelSerializer):
         ]
 
 
-class LeadsDataUploadSerializer(serializers.ModelSerializer):
+# class LeadsDataUploadSerializer(serializers.ModelSerializer):
 
-    class Meta:
-        model = LeadsDataUpload
-        fields = 'leads_file'
+#     class Meta:
+#         model = LeadsDataUpload
+#         fields = 'leads_file'

@@ -1,10 +1,10 @@
 from djoser.serializers import UserCreateSerializer
 from .models import (
-    UserAccount, Company, Team, TeamMember, TeamMemberInvite,  #, SalesLead, SalesOfficer, \
-    ) 
+    UserAccount, Company, Team, TeamMember, TeamMemberInvite, SalesLead, SalesOfficer, HeadOfSales) 
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-
+import re
+from rest_framework.exceptions import PermissionDenied
 
 class UserCreateSerializer(UserCreateSerializer):
     class Meta (UserCreateSerializer.Meta):
@@ -80,10 +80,10 @@ class CompanySerializer(serializers.ModelSerializer):
 
 class CreateCompanySerializer(serializers.ModelSerializer):
     user = serializers.CharField(max_length=255)
-    # teams = serializers.CharField(allow_blank=True, allow_null=True)
     company_name = serializers.CharField(allow_blank=True, allow_null=True)
-    # industry = serializers.CharField(allow_blank=True, allow_null=True)
     id = serializers.CharField(allow_blank=True, allow_null=True)
+    # teams = serializers.CharField(allow_blank=True, allow_null=True)
+    # industry = serializers.CharField(allow_blank=True, allow_null=True)
     
 
     class Meta:
@@ -111,17 +111,23 @@ class CreateCompanySerializer(serializers.ModelSerializer):
             pass
 
 
-# class SalesLeadSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = SalesLead
-#         fields = ['name', 'email']
+class HeadOfSalesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HeadOfSales
+        fields = ['name', 'email', 'phone_number']
 
 
-# class SalesOfficerSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = SalesOfficer
-#         fields = ['user', 'sales_lead', 'name', 'email']
-#         read_only_fields = ['user', 'sales_lead']
+class SalesLeadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalesLead
+        fields = ['name', 'email']
+
+
+class SalesOfficerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalesOfficer
+        fields = ['user', 'sales_lead', 'name', 'email']
+        read_only_fields = ['user', 'sales_lead']
 
 
 class TeamSerializer(serializers.ModelSerializer):
@@ -174,3 +180,110 @@ class MembersInviteSerializer(serializers.Serializer):
         return attrs
 
 
+class CreateUpdateTeamSerializer(serializers.Serializer):
+    team_name = serializers.CharField(max_length=255, allow_null=True, allow_blank=True)
+    team_id = serializers.UUIDField(required=False, allow_null=True)
+    team_type = serializers.CharField(required=False)
+    company_id = serializers.UUIDField(required=False, allow_null=True)
+    members = serializers.ListField(child=serializers.JSONField())
+
+    def validate(self, attrs):
+        context = self.context
+        company_id = attrs.get("company_id")
+        team_id = attrs.get("team_id")
+        team_name = attrs.get("team_name").title()
+        members = attrs.get("members", [])
+        user = context.get("user")
+
+        # Verify Email
+        email_pattern = re.compile(r"^[\w\.-]+@[\w\.-]+\.\w+$")
+        invalid_emails = [
+            member.get("email")
+            for member in members
+            if not member.get("email") or not email_pattern.match(member.get("email"))
+        ]
+
+        if invalid_emails:
+            raise serializers.ValidationError({"email": "A valid email is required"})
+
+        # validate company properties if method is create team ----------------------------------------->
+        if context.get("create_team") is True:
+            if not company_id:
+                raise serializers.ValidationError(
+                    {"company_id": "Company ID is required"}
+                )
+
+            if not team_name:
+                raise serializers.ValidationError(
+                    {"team_name": "team_name is required"}
+                )
+
+            company = Company.objects.filter(pk=company_id)
+
+            if not company:
+                raise serializers.ValidationError({"message": "Invalid company"})
+
+            company_instance = company.last()
+
+            if user != company_instance.user:
+                super_admin_roles = ["ADMIN", "OWNER", "SUB_ADMIN"]
+
+                user_in_super_admin_roles = TeamMember.objects.filter(
+                    team__company=company_instance,
+                    member=user,
+                    role__in=super_admin_roles,
+                )
+                if not user_in_super_admin_roles:
+                    raise PermissionDenied(
+                        "You do not have the necessary permissions to perform this action"
+                    )
+
+            existing_teams = Team.objects.filter(
+                team_name=team_name, company=company_instance
+            )
+
+            # print(existing_teams, "\n\n")
+
+            if existing_teams.exists():
+                raise serializers.ValidationError(
+                    {"message": f"You have an existing team name {team_name}"}
+                )
+
+        # ------------------------------------------------------------------------------------------------->
+
+        # If view method is update team then the following will be required to also validate
+        # properties required to
+
+        if context.get("create_team") is False:
+            if not team_id:
+                raise serializers.ValidationError({"team_id": "Team ID is required"})
+            try:
+                team_ins = Team.objects.get(pk=team_id)
+            except Team.DoesNotExist:
+                raise serializers.ValidationError({"message": "Invalid Team"})
+
+            for member in members:
+                email = member.get("email")
+                team_member = TeamMember.member_exists(email=email, team_ins=team_ins)
+                if (
+                    team_member
+                ):  # validate that user does not add a user that already exist
+                    raise serializers.ValidationError(
+                        {"message": "Team member exists on selected team"}
+                    )
+                else:
+                    pass
+
+            # Retrieve all emails from members
+            emails = [member.get("email") for member in members if member.get("email")]
+
+            # Check if any team member with the given emails already exists
+            existing_members = TeamMember.objects.filter(
+                email__in=emails, team=team_ins
+            )
+            if existing_members.exists():
+                raise serializers.ValidationError(
+                    {"message": "Team member exists on selected team"}
+                )
+
+        return attrs

@@ -36,24 +36,25 @@ from crmpipeline.utils import DataResponse, stage_notification
 
 from users.models import SalesOfficer, Company, UserAccount, TeamMember, SalesLead 
 # from requisition.views import CreateListAndDelCompany
-from users.serializers import CompanySerializer
+from users.serializers import CompanySerializer, HeadOfSalesSerializer
 from crmpipeline.models import (
-    Stage, Deal, DealProgression, LeadsDataUpload, HeadOfSales, DealPipeline, MerchantDealPipeline, Pipeline, \
-    Activity, Task, TaskNotification, TeamMemberRole, TeamMemberPermission, TeamMemberRolePermission, 
-     DealsComment, TaskComment, DealRequirement, EmaiLog, TaskSchedule, Report,
+    Stage, Deal, Pipeline, Activity, Task, TeamMemberRole, TeamMemberPermission, TeamMemberRolePermission,  
+    Lead, # DealProgression, LeadsDataUpload, HeadOfSales, TaskNotification, DealsComment, TaskComment, 
+    # MerchantDealPipeline, DealRequirement, EmaiLog, TaskSchedule, Report, DealPipeline, 
 )
 
 from crmpipeline.serializers import (
-    StageSerializer, DealSerializer, LeadsDataUploadSerializer, HeadOfSalesSerializer, PipelineSerializer, \
-    DealProgressionStageSerializer, ActivitySerializer, TaskSerializer, TaskNotificationSerializer, TeamMemberRoleSerializer, CreateDealSerializer,
-    TeamMemberPermissionSerializer, TeamMemberRolePermissionSerializer, TeamMemberSerializer, ChangeDealStageSerializer, NewTeamMemberSerializer
+    PipelineSerializer, StageSerializer, DealSerializer, TaskSerializer, TeamMemberRoleSerializer,  
+    TeamMemberPermissionSerializer, CreateDealSerializer, TeamMemberRolePermissionSerializer, TeamMemberSerializer, 
+    ChangeDealStageSerializer, NewTeamMemberSerializer, DealProgressionStageSerializer,
+    ActivitySerializer,  TaskNotificationSerializer, # LeadsDataUploadSerializer, 
 )
 
 from crmpipeline.permissions import (
     CanManageDeal,
-    CanManageMerchantsProgress,
     CanManageStage,
     CanManagePipeline,
+    CanManageMerchantsProgress,
     create_roles_and_permissions,
 )
 
@@ -1146,7 +1147,7 @@ class DealProgression(APIView):
 
         for dealprogression_unique_id in dealprogression_unique_ids:
             try:
-                deal = DealProgression.objects.get(id=dealprogression_unique_id)
+                deal = Deal.objects.get(id=dealprogression_unique_id)
                 old_stage_id = deal.deal_stage
                 deal.current_stage = stage_instance
                 # deal_progression.deal_stage = stage_instance.name
@@ -1635,7 +1636,7 @@ class FetchCreatedActivitiesView(APIView):
 
         activities_data = []
         for activity in activities:
-            activity_data = DealSerializer(activity).data
+            activity_data = ActivitySerializer(activity).data
             activity_data["total_activities"] = total_activities_map.get(activity.id, 0)
             activities_data.append(activity_data)
 

@@ -1,16 +1,17 @@
 from django.conf import settings
+from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated 
 # from .utils import send_code_to_user, generate_otp, send_otp_email
 from django.core.mail import EmailMultiAlternatives
 from django.contrib.sites.shortcuts import get_current_site
 from .models import UserAccount
 from djoser.social.views import ProviderAuthView
-from .serializers import UserCreateSerializer, UserOTPSerializer, UserAccountSerializer
+from users.serializers import UserCreateSerializer, UserAccountSerializer, CreateCompanySerializer, CreateUpdateTeamSerializer, SalesLeadSerializer, SalesOfficerSerializer, UserOTPSerializer
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from rest_framework_simplejwt.views import (
@@ -18,9 +19,10 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 ) 
-from users.serializers import CreateCompanySerializer
-from users.models import Company
+from users.models import Company, Team, TeamMember, SalesLead, SalesOfficer, TeamMemberInvite
 import random
+from users.authentication import CustomJWTAuthentication
+
 
 class CustomProviderAuthView(ProviderAuthView):
     @extend_schema(
@@ -291,6 +293,149 @@ class CreateCompanyView(APIView):
 
             return Response(res_data, status=status.HTTP_200_OK)
 
+
+class CreateDeleteTeam(APIView):
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+    # authentication_classes = [CustomUserAuthentication]
+
+    def post(self, request):
+        serializer = CreateUpdateTeamSerializer(
+            data=request.data, context={
+                "user": request.user, "request": request, "create_team": True}
+        )
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        create_team_result = Team.create_team(
+            user=request.user, **data
+        )
+        # handle response data
+        if create_team_result.get("status") == False:
+            response_data = {
+                "status": "Failed",
+                "message": create_team_result.get("message")
+            }
+            return Response(
+                response_data, status=status.HTTP_400_BAD_REQUEST
+            )
+        data["team_id"] = create_team_result.get("team").id
+        response_data = {
+            "status": "Success",
+            "data": data
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        pk = request.query_params.get("id")
+        try:
+            team = Team.objects.get(user=request.user, pk=pk)
+        except Team.DoesNotExist:
+            return Response({"status": "Error", 'message': 'Team not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        team.soft_delete()
+        return Response({"status": "Success", "message": "Team deleted successfully"}, status=status.HTTP_200_OK)
+
+
+class EditTeam(APIView):
+    permission_classes = [IsAuthenticated, ]
+    # authentication_classes = [CustomUserAuthentication]
+    authentication_classes = [CustomJWTAuthentication]
+
+    def post(self, request):
+
+        serializer = CreateUpdateTeamSerializer(data=request.data,
+                                                context={"user": request.user, "request": request,
+                                                         "create_team": False})
+        serializer.is_valid(raise_exception=True)
+        Team.update_team(validated_data=serializer.validated_data)
+        response_data = {
+            "status": "success",
+            "data": serializer.data
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        params = request.query_params
+        team_id = params.get("team_id")
+        member_id = params.get("member_id")
+
+        try:
+            team = Team.objects.get(pk=team_id)
+        except Team.DoesNotExist:
+            return Response({"status": "Error", "message": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            member = TeamMember.objects.get(
+                team_lead=request.user, pk=member_id, team_id=team_id)
+        except TeamMember.DoesNotExist:
+            return Response({"status": "Error", "message": "Member not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if member in team.members.all():
+            team.members.remove(member)
+            member.is_deleted = True
+            member.save()
+            return Response({"status": "Success", "message": "Team member removed successfully"},
+                            status=status.HTTP_200_OK)
+        else:
+            return Response({"status": "Error", "message": "Member not found on team"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+
+class CreateSalesLeadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        serializer = SalesLeadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        product_verticals = serializer.validated_data['product_verticals']
+
+        sales_lead, created = SalesLead.objects.get_or_create(
+            user=user,
+            defaults={
+                'name': user.get_full_name(),
+                'email': user.email,
+                # 'product_verticals': product_verticals,
+            }
+        )
+
+        if not created:
+            return Response({"detail": "Sales lead already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+
+class CreateSalesOfficerView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        sales_lead_id = request.data.get('sales_lead_id')
+        sales_lead = get_object_or_404(SalesLead, id=sales_lead_id)
+
+        # referral_code = generate_random_referral_code(6)
+        # product_vertical = sales_lead.product_verticals
+
+        serializer = SalesOfficerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        sales_officer, created = SalesOfficer.objects.get_or_create(
+            user=user,
+            sales_lead=sales_lead,
+            defaults={
+                'name': user.get_full_name(),
+                'email': user.email,
+                # 'product_vertical': product_vertical,
+                # 'referral_code': referral_code,
+
+            }
+        )
+
+        if not created:
+            return Response({"detail": "Sales officer already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 

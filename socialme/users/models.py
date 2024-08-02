@@ -204,22 +204,6 @@ class SalesLead(models.Model):
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
     date_hired = models.DateField(default=timezone.now)
-    product_verticals = models.CharField(max_length=200, choices=PRODUCT_VERTICALS_CHOICES)
-    merchants_acquired = models.IntegerField(default=0)
-    terminals_deployed = models.IntegerField(default=0)
-    merchant_activation_rate = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
-    overall_merchant_activation_rate = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
-    revenue_generated = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    overall_revenue_generated = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    average_revenue_generated = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    overall_average_revenue_generated = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    total_transaction_volume = models.IntegerField(default=0)
-    total_subscription_volume = models.IntegerField(default=0)
-    total_subscription_value = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    active_merchants_count = models.IntegerField(default=0)
-    inactive_merchants_count = models.IntegerField(default=0)
-    customer_satisfaction_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
-    sales_team_performance = models.JSONField(default=dict, blank=True, null=True)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
@@ -227,19 +211,19 @@ class SalesLead(models.Model):
     def __str__(self):
         return self.name
 
-    @property
-    def active_merchants_percentage(self):
-        total_merchants = self.active_merchants_count + self.inactive_merchants_count
-        return (self.active_merchants_count / total_merchants) * 100 if total_merchants > 0 else 0
+    # @property
+    # def active_merchants_percentage(self):
+    #     total_merchants = self.active_merchants_count + self.inactive_merchants_count
+    #     return (self.active_merchants_count / total_merchants) * 100 if total_merchants > 0 else 0
 
-    @property
-    def inactive_merchants_percentage(self):
-        total_merchants = self.active_merchants_count + self.inactive_merchants_count
-        return (self.inactive_merchants_count / total_merchants) * 100 if total_merchants > 0 else 0
+    # @property
+    # def inactive_merchants_percentage(self):
+    #     total_merchants = self.active_merchants_count + self.inactive_merchants_count
+    #     return (self.inactive_merchants_count / total_merchants) * 100 if total_merchants > 0 else 0
 
-    @property
-    def active_vs_inactive_comparison_ratio(self):
-        return f"{self.active_merchants_count}:{self.inactive_merchants_count}"
+    # @property
+    # def active_vs_inactive_comparison_ratio(self):
+    #     return f"{self.active_merchants_count}:{self.inactive_merchants_count}"
 
 
 class SalesOfficer(models.Model):
@@ -254,23 +238,6 @@ class SalesOfficer(models.Model):
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
     date_hired = models.DateField(default=timezone.now)
-    product_vertical = models.CharField(max_length=200, choices=SalesLead.PRODUCT_VERTICALS_CHOICES)
-    merchants_acquired = models.IntegerField(default=0)
-    terminals_deployed = models.IntegerField(default=0)
-    merchant_activation_rate = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
-    revenue_generated = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    overall_revenue_generated = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    average_revenue_generated = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    overall_average_revenue_generated = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    total_transaction_volume = models.IntegerField(default=0)
-    total_subscription_volume = models.IntegerField(default=0)
-    total_subscription_value = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    active_merchants_count = models.IntegerField(default=0)
-    inactive_merchants_count = models.IntegerField(default=0)
-    customer_satisfaction_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
-    individual_merchant_metrics = models.JSONField(default=list, blank=True, null=True)
-    merchant_acquisition_status = models.CharField(max_length=50, default='', blank=True, null=True)
-    merchant_acquisition_percentage_ratio = models.FloatField(default=0.0)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
@@ -278,20 +245,32 @@ class SalesOfficer(models.Model):
     def __str__(self):
         return self.name
 
-    @property
-    def active_merchants_percentage(self):
-        total_merchants = self.active_merchants_count + self.inactive_merchants_count
-        return (self.active_merchants_count / total_merchants) * 100 if total_merchants > 0 else 0
+    # @property
+    # def active_merchants_percentage(self):
+    #     total_merchants = self.active_merchants_count + self.inactive_merchants_count
+    #     return (self.active_merchants_count / total_merchants) * 100 if total_merchants > 0 else 0
 
-    @property
-    def inactive_merchants_percentage(self):
-        total_merchants = self.active_merchants_count + self.inactive_merchants_count
-        return (self.inactive_merchants_count / total_merchants) * 100 if total_merchants > 0 else 0
+    # @property
+    # def inactive_merchants_percentage(self):
+    #     total_merchants = self.active_merchants_count + self.inactive_merchants_count
+    #     return (self.inactive_merchants_count / total_merchants) * 100 if total_merchants > 0 else 0
 
-    @property
-    def active_vs_inactive_comparison_ratio(self):
-        return f"{self.active_merchants_count}:{self.inactive_merchants_count}"
+    # @property
+    # def active_vs_inactive_comparison_ratio(self):
+    #     return f"{self.active_merchants_count}:{self.inactive_merchants_count}"
     
+
+class HeadOfSales(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=100)
+    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+
+    def __str__(self):
+        return self.name
+
 
 class Team(models.Model):
     user = models.ForeignKey(UserAccount, on_delete=models.CASCADE, related_name="team_owner")
