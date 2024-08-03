@@ -3,7 +3,7 @@ from users.serializers import CompanySerializer
 from users.models import Company, TeamMember
 from crmpipeline.models import (SalesOfficer, Activity, Deal, DealProgression, Pipeline, Stage, Task, \
     TaskNotification, TeamMemberPermission, TeamMemberRole, TeamMemberRolePermission, Lead, # LeadsDataUpload,
-    )
+)
 
 
 class StageSerializer(serializers.ModelSerializer):
@@ -223,22 +223,22 @@ class ChangeDealStageSerializer(serializers.ModelSerializer):
     stage_id = serializers.IntegerField(required=True)
 
 
-class OnboardSalesOfficerSerializer(serializers.ModelSerializer):
-    role = serializers.CharField()
-    sales_lead = serializers.CharField()
-    email = serializers.CharField()
-    company = serializers.CharField()
-    name = serializers.CharField()
+# class OnboardSalesOfficerSerializer(serializers.ModelSerializer):
+#     role = serializers.CharField()
+#     sales_lead = serializers.CharField()
+#     email = serializers.CharField()
+#     company = serializers.CharField()
+#     name = serializers.CharField()
 
-    class Meta:
-        model = SalesOfficer
-        fields = [
-            "sales_lead", 
-            "name",
-            "email", 
-            "role", 
-            "company", 
-        ]
+#     class Meta:
+#         model = SalesOfficer
+#         fields = [
+#             "sales_lead", 
+#             "name",
+#             "email", 
+#             "role", 
+#             "company", 
+#         ]
 
 
 # class LeadsDataUploadSerializer(serializers.ModelSerializer):

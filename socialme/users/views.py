@@ -11,7 +11,6 @@ from django.core.mail import EmailMultiAlternatives
 from django.contrib.sites.shortcuts import get_current_site
 from .models import UserAccount
 from djoser.social.views import ProviderAuthView
-from users.serializers import UserCreateSerializer, UserAccountSerializer, CreateCompanySerializer, CreateUpdateTeamSerializer, SalesLeadSerializer, SalesOfficerSerializer, UserOTPSerializer
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from rest_framework_simplejwt.views import (
@@ -19,7 +18,9 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 ) 
-from users.models import Company, Team, TeamMember, SalesLead, SalesOfficer, TeamMemberInvite
+from users.models import Company, Team, TeamMember, SuperAdmin, HeadOfSales, SalesLead, SalesOfficer, TeamMemberInvite
+from users.serializers import UserCreateSerializer, UserAccountSerializer, CreateCompanySerializer, CreateUpdateTeamSerializer, SuperAdminSerializer, HeadOfSalesSerializer, SalesLeadSerializer, SalesOfficerSerializer, UserOTPSerializer
+from users.serializers import SalesLeadSerializer, SalesOfficerSerializer
 import random
 from users.authentication import CustomJWTAuthentication
 
@@ -382,21 +383,75 @@ class EditTeam(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
 
-class CreateSalesLeadView(APIView):
-    permission_classes = [IsAuthenticated]
+class CreateSuperAdminView(APIView):
+    permission_classes = [AllowAny]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
-        serializer = SalesLeadSerializer(data=request.data)
+        serializer = SuperAdminSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        product_verticals = serializer.validated_data['product_verticals']
 
-        sales_lead, created = SalesLead.objects.get_or_create(
+        super_admin, created = SuperAdmin.objects.get_or_create(
             user=user,
+            super_admin=super_admin,
             defaults={
                 'name': user.get_full_name(),
                 'email': user.email,
-                # 'product_verticals': product_verticals,
+            }
+        )
+
+        if not created:
+            return Response({"detail": "Super Admin already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+
+class CreateHeadOfSalesView(APIView):
+    permission_classes = [AllowAny]
+    # permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        super_admin_id = request.data.get('super_admin')
+        super_admin = get_object_or_404(SuperAdmin, id=super_admin_id)
+
+        serializer = HeadOfSalesSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        head_of_sales, created = HeadOfSales.objects.get_or_create(
+            user=user,
+            super_admin=super_admin,
+            defaults={
+                'name': user.get_full_name(),
+                'email': user.email,
+            }
+        )
+
+        if not created:
+            return Response({"detail": "Head of Sales already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    
+class CreateSalesLeadView(APIView):
+    permission_classes = [AllowAny]
+    # permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        head_of_sales_id = request.data.get('head_of_sales_id')
+        head_of_sales = get_object_or_404(HeadOfSales, id=head_of_sales_id)
+
+        serializer = SalesLeadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        sales_lead, created = SalesLead.objects.get_or_create(
+            user=user,
+            head_of_sales=head_of_sales,
+            defaults={
+                'name': user.get_full_name(),
+                'email': user.email,
             }
         )
 
@@ -407,7 +462,8 @@ class CreateSalesLeadView(APIView):
     
 
 class CreateSalesOfficerView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
@@ -436,42 +492,6 @@ class CreateSalesOfficerView(APIView):
             return Response({"detail": "Sales officer already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -3,8 +3,18 @@ from rest_framework.response import Response
 from rest_framework import status
 import django_filters
 from crmpipeline.models import Deal, TeamMemberRole 
-from crmpipeline.serializers import OnboardSalesOfficerSerializer
-from users.models import Company, SalesOfficer, TeamMember
+# from crmpipeline.serializers import OnboardSalesOfficerSerializer
+from users.serializers import (
+    OnboardSuperAdminSerializer, OnboardHeadOfSalesSerializer,  
+    OnboardSalesLeadSerializer, OnboardSalesOfficerSerializer, 
+    SuperAdminSerializer, HeadOfSalesSerializer, SalesLeadSerializer, 
+    SalesOfficerSerializer,
+)
+from users.models import (
+    Company, HeadOfSales, 
+    SuperAdmin, SalesLead, 
+    SalesOfficer, TeamMember 
+)
 
 
 class CustomPageNumberPagination(PageNumberPagination):
@@ -116,8 +126,130 @@ class DealFilter(django_filters.FilterSet):
         fields = {
             "deal_title": ["exact"],
             "description": ["exact"],
-            # "job_type": ["exact"],
         }
+
+
+def onboard_super_admin(data, user):
+    serializer = OnboardSuperAdminSerializer(data=data)
+    print(data)
+    serializer.is_valid(raise_exception=True)
+
+    # print(serializer.data)
+    merchant = serializer.validated_data["company"]
+    company_email = data.get("company_email", None)
+    role = serializer.validated_data["role"]
+
+    try:
+        merchant = Company.objects.get(id=merchant)
+    except Company.DoesNotExist:
+        return {
+            "success": False,
+            "message": "Company does not exist",
+            "status": status.HTTP_404_NOT_FOUND,
+        }
+    
+    try:
+        SuperAdmin.objects.get(user=user, merchant=merchant)
+        return {
+            "success": False,
+            "message": "Super Admin already onboarded",
+            "status": status.HTTP_404_NOT_FOUND,
+        }
+    except SuperAdmin.DoesNotExist:
+        pass
+
+    super_admin_instance = SuperAdmin.objects.create(
+        user=user,
+        merchant=merchant,
+        role=role,
+    )
+
+    if super_admin_instance and super_admin_instance.verified == True:
+        super_admin_instance.save()
+
+    user.save()
+
+
+def onboard_head_of_sales(data, user):
+    serializer = OnboardHeadOfSalesSerializer(data=data)
+    print(data)
+    serializer.is_valid(raise_exception=True)
+
+    # print(serializer.data)
+    merchant = serializer.validated_data["company"]
+    company_email = data.get("company_email", None)
+    role = serializer.validated_data["role"]
+
+    try:
+        merchant = Company.objects.get(id=merchant)
+    except Company.DoesNotExist:
+        return {
+            "success": False,
+            "message": "Company does not exist",
+            "status": status.HTTP_404_NOT_FOUND,
+        }
+    
+    try:
+        HeadOfSales.objects.get(user=user, merchant=merchant)
+        return {
+            "success": False,
+            "message": "Head of sales already onboarded",
+            "status": status.HTTP_404_NOT_FOUND,
+        }
+    except HeadOfSales.DoesNotExist:
+        pass
+
+    head_of_sales_instance = HeadOfSales.objects.create(
+        user=user,
+        merchant=merchant,
+        role=role,
+    )
+
+    if head_of_sales_instance and head_of_sales_instance.verified == True:
+        head_of_sales_instance.save()
+
+    user.save()
+
+
+def onboard_sales_lead(data, user):
+    serializer = OnboardSalesLeadSerializer(data=data)
+    print(data)
+    serializer.is_valid(raise_exception=True)
+
+    # print(serializer.data)
+    merchant = serializer.validated_data["company"]
+    company_email = data.get("company_email", None)
+    role = serializer.validated_data["role"]
+
+    try:
+        merchant = Company.objects.get(id=merchant)
+    except Company.DoesNotExist:
+        return {
+            "success": False,
+            "message": "Company does not exist",
+            "status": status.HTTP_404_NOT_FOUND,
+        }
+    
+    try:
+        SalesLead.objects.get(user=user, merchant=merchant)
+        return {
+            "success": False,
+            "message": "Sales lead already onboarded",
+            "status": status.HTTP_404_NOT_FOUND,
+        }
+    except SalesLead.DoesNotExist:
+        pass
+
+    sales_lead_instance = SalesLead.objects.create(
+        user=user,
+        merchant=merchant,
+        role=role,
+    )
+
+    if sales_lead_instance and sales_lead_instance.verified == True:
+        sales_lead_instance.save()
+
+    user.save()
 
 
 def onboard_sales_officer(data, user):

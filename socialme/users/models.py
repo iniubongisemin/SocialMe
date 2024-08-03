@@ -181,6 +181,23 @@ class Company(models.Model):
         return company
     
 
+class SuperAdmin(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=100)
+    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True, blank=True
+    )
+
+    def __str__(self):
+        return self.name
+
+
 class SalesLead(models.Model):
     STOCKS_INVENTORY = 'SI'
     SALES = 'SA'
@@ -201,6 +218,7 @@ class SalesLead(models.Model):
     )
     name = models.CharField(max_length=255)
     is_sales_lead = models.BooleanField(default=True)
+    head_of_sales = models.ForeignKey("HeadOfSales", on_delete=models.CASCADE, null=True, blank=True)
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
     date_hired = models.DateField(default=timezone.now)
@@ -267,6 +285,12 @@ class HeadOfSales(models.Model):
     phone_number = models.CharField(max_length=100)
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True, blank=True
+    )
+    super_admin = models.ForeignKey(SuperAdmin, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
         return self.name

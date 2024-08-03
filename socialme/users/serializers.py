@@ -1,6 +1,6 @@
 from djoser.serializers import UserCreateSerializer
-from .models import (
-    UserAccount, Company, Team, TeamMember, TeamMemberInvite, SalesLead, SalesOfficer, HeadOfSales) 
+from users.models import (
+    UserAccount, Company, Team, TeamMember, TeamMemberInvite, SalesLead, SalesOfficer, HeadOfSales, SuperAdmin) 
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 import re
@@ -111,16 +111,22 @@ class CreateCompanySerializer(serializers.ModelSerializer):
             pass
 
 
+class SuperAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SuperAdmin
+        fields = ['name', 'email']
+
+
 class HeadOfSalesSerializer(serializers.ModelSerializer):
     class Meta:
         model = HeadOfSales
-        fields = ['name', 'email', 'phone_number']
+        fields = ['name', 'email', 'super_admin']
 
 
 class SalesLeadSerializer(serializers.ModelSerializer):
     class Meta:
         model = SalesLead
-        fields = ['name', 'email']
+        fields = ['name', 'email', 'head_of_sales']
 
 
 class SalesOfficerSerializer(serializers.ModelSerializer):
@@ -287,3 +293,67 @@ class CreateUpdateTeamSerializer(serializers.Serializer):
                 )
 
         return attrs
+    
+
+class OnboardSuperAdminSerializer(serializers.ModelSerializer):
+    role = serializers.CharField()
+    email = serializers.CharField()
+    company = serializers.CharField()
+    name = serializers.CharField()
+
+    class Meta:
+        model = SuperAdmin
+        fields = [
+            "name",
+            "email", 
+            "role", 
+            "company", 
+        ]
+    
+
+class OnboardHeadOfSalesSerializer(serializers.ModelSerializer):
+    role = serializers.CharField()
+    email = serializers.CharField()
+    company = serializers.CharField()
+    name = serializers.CharField()
+
+    class Meta:
+        model = HeadOfSales
+        fields = [
+            "name",
+            "email", 
+            "role", 
+            "company", 
+        ]
+
+
+class OnboardSalesLeadSerializer(serializers.ModelSerializer):
+    role = serializers.CharField()
+    email = serializers.CharField()
+    company = serializers.CharField()
+    name = serializers.CharField()
+
+    class Meta:
+        model = SalesLead
+        fields = [
+            "name",
+            "email", 
+            "role", 
+            "company", 
+        ]
+
+
+class OnboardSalesOfficerSerializer(serializers.ModelSerializer):
+    role = serializers.CharField()
+    email = serializers.CharField()
+    company = serializers.CharField()
+    name = serializers.CharField()
+
+    class Meta:
+        model = SalesLead
+        fields = [
+            "name",
+            "email", 
+            "role", 
+            "company", 
+        ]

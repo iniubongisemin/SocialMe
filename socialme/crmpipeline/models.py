@@ -14,12 +14,13 @@ from django.shortcuts import get_object_or_404
 def generate_random_stage_id(length=6):
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
-
 def generate_random_pipeline_id(length=6):
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
-
 def generate_random_task_id(length=6):
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
+
+def generate_random_activity_id(length=6):
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 
@@ -313,7 +314,6 @@ class Activity(models.Model):
     ]
 
     title = models.CharField(max_length=100)
-    # pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE)
     stage = models.ForeignKey(Stage, on_delete=models.CASCADE)
     status = models.CharField(max_length=100, choices=STATUS_CHOICES, null=True, blank=True)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
