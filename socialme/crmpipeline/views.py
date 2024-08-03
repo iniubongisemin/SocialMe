@@ -173,11 +173,28 @@ class LeadView(APIView):
                 'id': lead.id,
                 'name': lead.name,
                 'email': lead.email_address,
+                'label': serializer.validated_data.get('label', 'COLD'), # Default set to cold
             }
         )
 
         if not created:
             return Response({"detail": "Lead already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Checking if the lead label is HOT and convert to Deal if True
+
+        if lead.label == "HOT":
+            with transaction.atomic():
+                deal = lead.convert_lead_to_deal()
+                if deal:
+                    # Include the deal information in the response if created
+                    return Response({
+                        "lead": serializer.data,
+                        "deal": {
+                            "id": deal.unique_id,
+                            "title": deal.deal_title,
+                            "status": deal.deal_status,
+                        }
+                    }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

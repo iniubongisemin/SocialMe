@@ -43,18 +43,18 @@ MERCHANT_ENDPOINT = [
 ]
 
 PIPELINE_ENDPOINT = [
-    path("manage-pipeline/<int: pipeline_id>/", ManagePipelineView.as_view()),
-    path("edit-pipeline/<int: pipeline_id>/", ManagePipelineView.as_view()),
-    path("partially-edit-pipeline/<int: pipeline_id>/", ManagePipelineView.as_view()),
-    path("delete-pipeline/<int: pipeline_id>/", ManagePipelineView.as_view()),
+    path("manage-pipeline/<int:pipeline_id>/", ManagePipelineView.as_view()),
+    path("edit-pipeline/<int:pipeline_id>/", ManagePipelineView.as_view()),
+    path("partially-edit-pipeline/<int:pipeline_id>/", ManagePipelineView.as_view()),
+    path("delete-pipeline/<int:pipeline_id>/", ManagePipelineView.as_view()),
     path("get-sales-officer-pipeline/", SalesOfficersPipelines.as_view()),
 ]
 
 STAGE_ENDPOINT = [
     path("manage-pipeline-stage/", ManagePipelineStagesAPIView.as_view()), 
-    path("update-pipeline-stage/<int: pipeline_id>/", ManagePipelineStagesAPIView.as_view()), 
-    path("partially-update-pipeline-stage/<int: pipeline_id>/", ManagePipelineStagesAPIView.as_view()), 
-    path("delete-pipeline-stage/<int: pipeline_id>/", ManagePipelineStagesAPIView.as_view()), 
+    path("update-pipeline-stage/<int:pipeline_id>/", ManagePipelineStagesAPIView.as_view()), 
+    path("partially-update-pipeline-stage/<int:pipeline_id>/", ManagePipelineStagesAPIView.as_view()), 
+    path("delete-pipeline-stage/<int:pipeline_id>/", ManagePipelineStagesAPIView.as_view()), 
 ]
 
 LEAD_ENDPOINT = [
@@ -95,11 +95,11 @@ PERMISSIONS_ENDPOINT = [
 
 TEAM_ENDPOINT = [
     path("add-team-member/", AddTeamMemberView.as_view()),
-    path("remove-team-member/<str: email>/", RemoveTeamMemberView.as_view()),
-    path("update-team-member-role/<int: id>/", UpdateTeamMemberRoleView.as_view()),
+    path("remove-team-member/<str:email>/", RemoveTeamMemberView.as_view()),
+    path("update-team-member-role/<int:id>/", UpdateTeamMemberRoleView.as_view()),
     path("team-member-role/", TeamMemberRoleView.as_view()),
-    path("team-member-permissions/<int: id>/", TeamMemberPermissionView.as_view()),
-    path("team-role-member-permissions/<int: id>/", TeamMemberRolePermissionView.as_view()),
+    path("team-member-permissions/<int:id>/", TeamMemberPermissionView.as_view()),
+    path("team-role-member-permissions/<int:id>/", TeamMemberRolePermissionView.as_view()),
 ]
 
 

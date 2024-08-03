@@ -126,48 +126,8 @@ class Deal(models.Model):
         return self.deal_title
 
     @classmethod
-    def create(
-            cls,
-            deal_title,
-            description,
-            merchant,
-            sales_officer,
-            label,
-            industry,
-            deal_status,
-            team_member,
-            pipeline_type,
-            pipeline,
-            contact_person,
-            value,
-            product,
-            start_date,
-            updated_at,
-            expected_close_date,
-            phone_num,
-            email,
-    ):
-        deal = cls(
-            cls,
-            deal_title,
-            description,
-            merchant,
-            sales_officer,
-            label,
-            industry,
-            deal_status,
-            team_member,
-            pipeline_type,
-            pipeline,
-            contact_person,
-            value,
-            product,
-            start_date,
-            updated_at,
-            expected_close_date,
-            phone_num,
-            email,
-        )
+    def create(cls, **kwargs):
+        deal = cls(**kwargs)
         deal.save()
         return deal
     
@@ -277,6 +237,28 @@ class Lead(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def convert_lead_to_deal(self):
+        """
+        This function can be called to convert a Lead to a Deal if the label is set to "HOT" 
+        """
+        if self.label == "HOT":
+            deal = Deal.objects.create(
+                deal_title = self.name,
+                phone_num = self.phone_number,
+                email = self.email_address,
+                merchant = self.company,
+                current_stage = self.stage,
+                contact_person = self.name,
+                label = self.label,
+                deal_status = "ONGOING", # Default value
+                value = "0", # Default value
+                product = "STOCKS_INVENTORY", # Default value
+            )
+            return deal
+        else:
+            return None
+        
 
 class DealProgression(models.Model):
     STATUS_CHOICES = [
