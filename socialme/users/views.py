@@ -20,9 +20,11 @@ from rest_framework_simplejwt.views import (
 ) 
 from users.models import Company, Team, TeamMember, SuperAdmin, HeadOfSales, SalesLead, SalesOfficer, TeamMemberInvite
 from users.serializers import UserCreateSerializer, UserAccountSerializer, CreateCompanySerializer, CreateUpdateTeamSerializer, SuperAdminSerializer, HeadOfSalesSerializer, SalesLeadSerializer, SalesOfficerSerializer, UserOTPSerializer
-from users.serializers import SalesLeadSerializer, SalesOfficerSerializer
+from users.serializers import SalesLeadSerializer, SalesOfficerSerializer, CompanySerializer
 import random
 from users.authentication import CustomJWTAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from crmpipeline.reusables import CustomPagination
 
 
 class CustomProviderAuthView(ProviderAuthView):
@@ -275,7 +277,8 @@ class ResendOTPView(APIView):
         email.send()
 
         return Response({'message': ('OTP resent successfully.')}, status=status.HTTP_200_OK)
-    
+
+
 class CreateCompanyView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):  # create a new company
@@ -287,12 +290,96 @@ class CreateCompanyView(APIView):
 
             res_data = {"status": "Success",
                         "data": {
-                            "id": company.id,
                             "company_name": validated_data.get("company_name"),
+                            "user": validated_data.get("user"),
+                            # "id": company.id,
                         },
                     }
 
             return Response(res_data, status=status.HTTP_200_OK)
+
+
+class MerchantView(APIView):
+    """
+    API endpoint for handling merchant-related operations.
+
+    Requires JWT authentication.
+    """
+
+    authentication_classes = [JWTAuthentication]
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+
+    serializer_class = CompanySerializer
+
+    pagination_class = CustomPagination
+
+    def post(self, request):
+        """
+        Create a new merchant.
+
+        Required Parameters:
+        - company_name: Name of the company.
+        - id: ID of the company.
+
+        Returns:
+            - 201 Created: Company created successfully.
+            - 400 Bad Request: If any required parameter is missing or invalid.
+        """
+
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        company_name = request.data.get("company_name",)
+        # company_name = serializer.validated_data.get["company_name"]
+        # id = serializer.validated_data.get["id"]
+        id = serializer.validated_data.get("id",)
+
+        # check if merchant exists
+        existing_merchant = Company.objects.filter(company_name=company_name, id=id)
+        if existing_merchant.exists():
+            return Response(
+                {"message": "Merchant already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # create merchant
+        merchant = get_object_or_404(Company, id=id)
+        # merchant = Company.objects.create(
+        #     company_name=company_name,
+        #     user=UserAccount.default_company,
+        # )
+
+        serializer = CompanySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # merchant_serialized_data = CompanySerializer(merchant).data
+
+        return Response(
+            {
+                "message": "Merchant created successfully",
+                # "company": merchant_serialized_data,
+                "company": serializer,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    def get(self, request):
+        """
+        Retrieve a list of all merchants.
+
+        Returns:
+        - Paginated list of merchant details.
+
+        Note:
+        - Requires JWT authentication.
+        """
+
+        merchants = Company.objects.all()
+        paginator = CustomPagination()
+        result_page = paginator.paginate_queryset(merchants, request)
+        serializer = CompanySerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class CreateDeleteTeam(APIView):
@@ -328,7 +415,7 @@ class CreateDeleteTeam(APIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
     def delete(self, request):
-        pk = request.query_params.get("id")
+        pk = request.query_params.get("team_id")
         try:
             team = Team.objects.get(user=request.user, pk=pk)
         except Team.DoesNotExist:
@@ -345,9 +432,14 @@ class EditTeam(APIView):
 
     def post(self, request):
 
-        serializer = CreateUpdateTeamSerializer(data=request.data,
-                                                context={"user": request.user, "request": request,
-                                                         "create_team": False})
+        serializer = CreateUpdateTeamSerializer(
+            data=request.data,
+            context={
+                "user": request.user, 
+                "request": request,
+                "create_team": False
+            }
+        )
         serializer.is_valid(raise_exception=True)
         Team.update_team(validated_data=serializer.validated_data)
         response_data = {
@@ -376,11 +468,19 @@ class EditTeam(APIView):
             team.members.remove(member)
             member.is_deleted = True
             member.save()
-            return Response({"status": "Success", "message": "Team member removed successfully"},
-                            status=status.HTTP_200_OK)
+            return Response(
+                {
+                    "status": "Success", 
+                    "message": "Team member removed successfully"
+                },
+                status=status.HTTP_200_OK)
         else:
-            return Response({"status": "Error", "message": "Member not found on team"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    "status": "Error", 
+                    "message": "Member not found on team"
+                },
+                status=status.HTTP_400_BAD_REQUEST)
 
 
 class CreateSuperAdminView(APIView):
@@ -394,9 +494,9 @@ class CreateSuperAdminView(APIView):
 
         super_admin, created = SuperAdmin.objects.get_or_create(
             user=user,
-            super_admin=super_admin,
+            # super_admin=super_admin,
             defaults={
-                'name': user.get_full_name(),
+                'name': user.name,
                 'email': user.email,
             }
         )
@@ -406,6 +506,33 @@ class CreateSuperAdminView(APIView):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
+    def delete(self, request):
+        params = request.query_params
+        email = params.get("email")
+        super_admin_id = params.get("super_admin_id")
+
+        try:
+            super_admin = SuperAdmin.objects.get(pk=super_admin_id, email=email)
+        except SuperAdmin.DoesNotExist:
+            return Response(
+                {
+                    "status": "Error",
+                    "message": "Super Admin not found",
+                }, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if super_admin in super_admin.objects:
+            super_admin.delete(super_admin)
+            super_admin.save()
+            return Response(
+                {
+                    "status": "Success",
+                    "message": "Super Admin deleted successfully"
+                },
+                status=status.HTTP_200_OK
+            )
+
 
 class CreateHeadOfSalesView(APIView):
     permission_classes = [AllowAny]
@@ -413,7 +540,7 @@ class CreateHeadOfSalesView(APIView):
 
     def post(self, request):
         user = request.user
-        super_admin_id = request.data.get('super_admin')
+        super_admin_id = request.data.get('super_admin_id')
         super_admin = get_object_or_404(SuperAdmin, id=super_admin_id)
 
         serializer = HeadOfSalesSerializer(data=request.data)
@@ -421,9 +548,9 @@ class CreateHeadOfSalesView(APIView):
 
         head_of_sales, created = HeadOfSales.objects.get_or_create(
             user=user,
-            super_admin=super_admin,
+            head_of_sales=head_of_sales,
             defaults={
-                'name': user.get_full_name(),
+                'name': user.name,
                 'email': user.email,
             }
         )
@@ -433,6 +560,33 @@ class CreateHeadOfSalesView(APIView):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
+    def delete(self, request):
+        params = request.query_params
+        email = params.get("email")
+        head_of_sales_id = params.get("head_of_sales_id")
+
+        try:
+            head_of_sales = HeadOfSales.objects.get(pk=head_of_sales_id, email=email)
+        except HeadOfSales.DoesNotExist:
+            return Response(
+                {
+                    "status": "Error",
+                    "message": "Head of Sales not found",
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if head_of_sales in head_of_sales.objects:
+            head_of_sales.delete(head_of_sales)
+            head_of_sales.save()
+            return Response(
+                {
+                    "status": "Success",
+                    "message": "Head of Sales deleted successfully"
+                }, 
+                status=status.HTTP_200_OK
+            )
+
     
 class CreateSalesLeadView(APIView):
     permission_classes = [AllowAny]
@@ -448,9 +602,9 @@ class CreateSalesLeadView(APIView):
 
         sales_lead, created = SalesLead.objects.get_or_create(
             user=user,
-            head_of_sales=head_of_sales,
+            sales_lead=sales_lead,
             defaults={
-                'name': user.get_full_name(),
+                'name': user.name,
                 'email': user.email,
             }
         )
@@ -460,8 +614,34 @@ class CreateSalesLeadView(APIView):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
+    def delete(self, request):
+        params = request.query_params
+        email = params.get("email")
+        sales_lead_id = params.get("sales_lead_id")
+    
+        try:
+            sales_lead = SalesLead.objects.get(pk=sales_lead_id, email=email)
+        except SalesLead.DoesNotExist:
+            return Response(
+                {
+                    "status": "Error",
+                    "message": "Sales Lead not found"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if sales_lead in sales_lead.objects:
+            sales_lead.delete(sales_lead)
+            sales_lead.save()
+            return Response(
+                {
+                    "status": "Success",
+                    "message": "Sales Lead deleted successfully"
+                },
+                status=status.HTTP_200_OK
+            )
 
-class CreateSalesOfficerView(APIView):
+class SalesOfficerView(APIView):
     permission_classes = [AllowAny]
     # permission_classes = [IsAuthenticated]
 
@@ -478,13 +658,12 @@ class CreateSalesOfficerView(APIView):
 
         sales_officer, created = SalesOfficer.objects.get_or_create(
             user=user,
-            sales_lead=sales_lead,
+            sales_officer=sales_officer,
             defaults={
-                'name': user.get_full_name(),
+                'name': user.name,
                 'email': user.email,
                 # 'product_vertical': product_vertical,
                 # 'referral_code': referral_code,
-
             }
         )
 
@@ -492,6 +671,55 @@ class CreateSalesOfficerView(APIView):
             return Response({"detail": "Sales officer already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    def get(self, request):
+        params = request.query_params
+        sales_officer_id = params.get("sales_officer_id")
+
+        if sales_officer_id is None:
+            return Response(
+                {
+                    "message": "sales_officer_id",
+                }, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            sales_officer = SalesOfficer.objects.get(id=sales_officer_id)
+        except SalesOfficer.DoesNotExist:
+            return Response(
+                {
+                    "message": f"The Sales Officer does not exist"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    def delete(self, request):
+        params = request.query_params
+        email = params.get("email")
+        sales_officer_id = params.get("sales_officer_id")
+
+        try:
+            sales_officer = SalesOfficer.objects.get(pk=sales_officer_id, email=email)
+        except SalesOfficer.DoesNotExist:
+            return Response(
+                {
+                    "status": "Error",
+                    "message": "Sales Officer not found"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if sales_officer in sales_officer.objects:
+            sales_officer.delete(sales_officer)
+            sales_officer.save()
+            return Response(
+                {
+                    "status": "Success",
+                    "message": "Sales Officer deleted successfully"
+                },
+                status=status.HTTP_200_OK
+            )
 
 
 

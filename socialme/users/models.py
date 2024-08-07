@@ -70,13 +70,13 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
         ("POS", "POS"),
     ]
 
-    default_company = models.ForeignKey(
-        "Company",
-        on_delete=models.SET_NULL,
-        related_name="default_company",
-        null=True,
-        blank=True,
-    )
+    # default_company = models.ForeignKey(
+    #     "Company",
+    #     on_delete=models.SET_NULL,
+    #     related_name="default_company",
+    #     null=True,
+    #     blank=True,
+    # )
 
     email = models.EmailField(max_length=255, unique=True,)
     username = models.CharField(max_length=255, unique=True)
@@ -183,7 +183,6 @@ class Company(models.Model):
 
 class SuperAdmin(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255)
     email = models.EmailField()
     phone_number = models.CharField(max_length=100)
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
@@ -193,9 +192,32 @@ class SuperAdmin(models.Model):
         on_delete=models.CASCADE,
         null=True, blank=True
     )
+    first_name = models.CharField(max_length=255, null=True, blank=True)
+    last_name = models.CharField(max_length=255, null=True, blank=True)
+    is_staff = models.BooleanField(default=True)
+    is_superuser = models.BooleanField(default=True)
 
     def __str__(self):
-        return self.name
+        return f"Super Admin: {self.first_name} {self.last_name}"
+
+
+class HeadOfSales(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    first_name = models.CharField(max_length=255, null=True, blank=True)
+    last_name = models.CharField(max_length=255, null=True, blank=True)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=100)
+    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True, blank=True
+    )
+    super_admin = models.ForeignKey(SuperAdmin, on_delete=models.CASCADE, blank=True, null=True)
+
+    def __str__(self):
+        return f"Head of Sales: {self.first_name} {self.last_name}"
 
 
 class SalesLead(models.Model):
@@ -216,9 +238,9 @@ class SalesLead(models.Model):
         on_delete=models.CASCADE,
         null=True, blank=True
     )
-    name = models.CharField(max_length=255)
-    is_sales_lead = models.BooleanField(default=True)
     head_of_sales = models.ForeignKey("HeadOfSales", on_delete=models.CASCADE, null=True, blank=True)
+    first_name = models.CharField(max_length=255, null=True, blank=True)
+    last_name = models.CharField(max_length=255, null=True, blank=True)
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
     date_hired = models.DateField(default=timezone.now)
@@ -226,8 +248,11 @@ class SalesLead(models.Model):
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
 
+    is_staff = models.BooleanField(default=True)
+    is_superuser = models.BooleanField(default=True)
+
     def __str__(self):
-        return self.name
+        return f"Sales Lead: {self.first_name} {self.last_name}"
 
     # @property
     # def active_merchants_percentage(self):
@@ -251,8 +276,8 @@ class SalesOfficer(models.Model):
         null=True, blank=True
     )
     sales_lead = models.ForeignKey(SalesLead, on_delete=models.CASCADE, related_name='sales_officers')
-    name = models.CharField(max_length=255)
-    is_sales_officer = models.BooleanField(default=True)
+    first_name = models.CharField(max_length=255, null=True, blank=True)
+    last_name = models.CharField(max_length=255, null=True, blank=True)
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
     date_hired = models.DateField(default=timezone.now)
@@ -261,7 +286,7 @@ class SalesOfficer(models.Model):
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
 
     def __str__(self):
-        return self.name
+        return f"Sales Officer: {self.first_name} {self.last_name}"
 
     # @property
     # def active_merchants_percentage(self):
@@ -277,24 +302,6 @@ class SalesOfficer(models.Model):
     # def active_vs_inactive_comparison_ratio(self):
     #     return f"{self.active_merchants_count}:{self.inactive_merchants_count}"
     
-
-class HeadOfSales(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255)
-    email = models.EmailField()
-    phone_number = models.CharField(max_length=100)
-    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        null=True, blank=True
-    )
-    super_admin = models.ForeignKey(SuperAdmin, on_delete=models.CASCADE, blank=True, null=True)
-
-    def __str__(self):
-        return self.name
-
 
 class Team(models.Model):
     user = models.ForeignKey(UserAccount, on_delete=models.CASCADE, related_name="team_owner")

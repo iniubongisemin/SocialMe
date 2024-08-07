@@ -81,7 +81,7 @@ class CompanySerializer(serializers.ModelSerializer):
 class CreateCompanySerializer(serializers.ModelSerializer):
     user = serializers.CharField(max_length=255)
     company_name = serializers.CharField(allow_blank=True, allow_null=True)
-    id = serializers.CharField(allow_blank=True, allow_null=True)
+    # id = serializers.CharField(allow_blank=True, allow_null=True)
     # teams = serializers.CharField(allow_blank=True, allow_null=True)
     # industry = serializers.CharField(allow_blank=True, allow_null=True)
     
@@ -90,8 +90,8 @@ class CreateCompanySerializer(serializers.ModelSerializer):
         model = Company
         fields = [
             "company_name",
-            "id",
-            "user"
+            "user",
+            # "id",
         ]
         # exclude = ['user']
 
@@ -132,8 +132,9 @@ class SalesLeadSerializer(serializers.ModelSerializer):
 class SalesOfficerSerializer(serializers.ModelSerializer):
     class Meta:
         model = SalesOfficer
-        fields = ['user', 'sales_lead', 'name', 'email']
-        read_only_fields = ['user', 'sales_lead']
+        fields = ['name', 'email', 'sales_lead']
+        # fields = ['user', 'sales_lead', 'name', 'email']
+        # read_only_fields = ['user', 'sales_lead']
 
 
 class TeamSerializer(serializers.ModelSerializer):
@@ -232,14 +233,14 @@ class CreateUpdateTeamSerializer(serializers.Serializer):
             company_instance = company.last()
 
             if user != company_instance.user:
-                super_admin_roles = ["ADMIN", "OWNER", "SUB_ADMIN"]
+                admin_roles = ["SUPER_ADMIN", "SALES_LEAD", "HEAD_OF_SALES"]
 
                 user_in_super_admin_roles = TeamMember.objects.filter(
                     team__company=company_instance,
                     member=user,
-                    role__in=super_admin_roles,
+                    role__in=admin_roles,
                 )
-                if not user_in_super_admin_roles:
+                if not user in admin_roles:
                     raise PermissionDenied(
                         "You do not have the necessary permissions to perform this action"
                     )

@@ -3,6 +3,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
 class CustomJWTAuthentication(JWTAuthentication):
+    
     def authenticate(self, request):
         try:
             header = self.get_header(request)
@@ -20,3 +21,4 @@ class CustomJWTAuthentication(JWTAuthentication):
             return self.get_user(validated_token), validated_token
         except:
             return None
+    # pass

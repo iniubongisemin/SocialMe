@@ -1,34 +1,34 @@
-import json
 from datetime import datetime
-import zipfile
 from django.db.models import Q, F
-from django.http import HttpResponse
-from io import BytesIO
-import pandas as pd
 
-from django.db.models import Count
 from django.core.exceptions import ObjectDoesNotExist
 import django_filters
-# import pdfplumber
-from decouple import config
-from django.core import signing
 from django.core.exceptions import ValidationError
-from django.core.files.storage import FileSystemStorage
-from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models import Count, Max
 from django.http import Http404
 from django.shortcuts import get_object_or_404
-from django.utils.decorators import method_decorator
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, status
 from rest_framework.exceptions import NotFound
 from rest_framework.generics import CreateAPIView, DestroyAPIView, UpdateAPIView
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+import json
+from rest_framework.pagination import PageNumberPagination
+from django.utils.decorators import method_decorator
+from django.core.validators import validate_email
+from django.core.files.storage import FileSystemStorage
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+from django.db.models import Count
+from django.core import signing
+from decouple import config
+from io import BytesIO
+import pandas as pd
+import zipfile
+# import pdfplumber
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django_filters.rest_framework import DjangoFilterBackend
 from crmpipeline.reusables import (
@@ -93,9 +93,10 @@ class MerchantView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        company_name = request.data.get("company_name")
-        company_name = serializer.validated_data["company_name"]
-        id = serializer.validated_data["id"]
+        company_name = request.data.get("company_name",)
+        # company_name = serializer.validated_data.get["company_name"]
+        # id = serializer.validated_data.get["id"]
+        id = serializer.validated_data.get("id",)
 
         # check if merchant exists
         existing_merchant = Company.objects.filter(company_name=company_name, id=id)
@@ -106,17 +107,22 @@ class MerchantView(APIView):
             )
         
         # create merchant
-        merchant = Company.create(
-            company_name=company_name,
-            user=UserAccount,
-        )
+        merchant = get_object_or_404(Company, id=id)
+        # merchant = Company.objects.create(
+        #     company_name=company_name,
+        #     user=UserAccount.default_company,
+        # )
 
-        merchant_serialized_data = CompanySerializer(merchant).data
+        serializer = CompanySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # merchant_serialized_data = CompanySerializer(merchant).data
 
         return Response(
             {
                 "message": "Merchant created successfully",
-                "company": merchant_serialized_data,
+                # "company": merchant_serialized_data,
+                "company": serializer,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -767,105 +773,105 @@ class SalesOfficerTeamView(generics.ListAPIView):
             return TeamMember.objects.filter(company=merchant)
 
 
-class SalesOfficerView(APIView):
-    """
-    API endpoint for onboarding, retrieving, and deleting sales officers.
+# class SalesOfficerView(APIView):
+#     """
+#     API endpoint for onboarding, retrieving, and deleting sales officers.
 
-    Requires JWT authentication.
+#     Requires JWT authentication.
 
-    Attributes:
-    - authentication_classes: List of authentication classes required for access.
-    - permission_classes: List of permission classes required for access.
-    - serializer_class: Serializer class for onboarded sales officer data.
+#     Attributes:
+#     - authentication_classes: List of authentication classes required for access.
+#     - permission_classes: List of permission classes required for access.
+#     - serializer_class: Serializer class for onboarded sales officer data.
 
-    Methods:
-    - post(request): Custom method to onboard a new sales officer.
-    - get(request): Custom method to retrieve details of the authenticated sales officer.
-    - delete(request): Custom method to delete a sales officer.
+#     Methods:
+#     - post(request): Custom method to onboard a new sales officer.
+#     - get(request): Custom method to retrieve details of the authenticated sales officer.
+#     - delete(request): Custom method to delete a sales officer.
 
-    Returns:
-    - Response: Result of the requested operation.
-    """
-    authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
+#     Returns:
+#     - Response: Result of the requested operation.
+#     """
+#     authentication_classes = [JWTAuthentication]
+#     # permission_classes = [IsAuthenticated]
+#     permission_classes = [AllowAny]
 
-    def post(self, request):
-        """
-        Onboard a new sales officer.
+#     def post(self, request):
+#         """
+#         Onboard a new sales officer.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Result of the onboard operation.
-        """
+#         Returns:
+#         - Response: Result of the onboard operation.
+#         """
 
-        # Onboard sales officer
-        result = onboard_sales_officer(request.data, request.user)
-        if not result["success"]:
-            return Response(result["message"], status=result["status"])
+#         # Onboard sales officer
+#         result = onboard_sales_officer(request.data, request.user)
+#         if not result["success"]:
+#             return Response(result["message"], status=result["status"])
         
-        # Onboard team member
-        result = onboard_team_member(request.user, result["sales_officer_instance"])
-        if not result["success"]:
-            return Response(
-                {"message": "Sales officer onboarded successfully"}, status=status.HTTP_201_CREATED
-            )
+#         # Onboard team member
+#         result = onboard_team_member(request.user, result["sales_officer_instance"])
+#         if not result["success"]:
+#             return Response(
+#                 {"message": "Sales officer onboarded successfully"}, status=status.HTTP_201_CREATED
+#             )
     
-    def get(self, request):
-        """
-        Retrieve details of the authenticated sales officers.
+#     def get(self, request):
+#         """
+#         Retrieve details of the authenticated sales officers.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Details of the authenticated sales officer.
-        """
+#         Returns:
+#         - Response: Details of the authenticated sales officer.
+#         """
 
-        id = request.user.id
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+#         id = request.user.id
+#         if id is None:
+#             return Response(
+#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+#             )
         
-        try:
-            sales_officer = SalesOfficer.objects.get(user__id=id)
-        except SalesOfficer.DoesNotExist:
-            return Response(
-                {"message": f"The requested {sales_officer} does not exist"}, status=status.HTTP_404_NOT_FOUND
-            )
+#         try:
+#             sales_officer = SalesOfficer.objects.get(user__id=id)
+#         except SalesOfficer.DoesNotExist:
+#             return Response(
+#                 {"message": f"The requested {sales_officer} does not exist"}, status=status.HTTP_404_NOT_FOUND
+#             )
         
-    def delete(self, request):
-        """
-        Delete a sales officer.
+#     def delete(self, request):
+#         """
+#         Delete a sales officer.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Result of the deletion operation
-        """
+#         Returns:
+#         - Response: Result of the deletion operation
+#         """
 
-        id = request.GET.get("id", None)
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+#         id = request.GET.get("id", None)
+#         if id is None:
+#             return Response(
+#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+#             )
         
-        try:
-            sales_officer = SalesOfficer.objects.get(id=id)
-        except SalesOfficer.DoesNotExist:
-            return Response(
-                {"message": "Sales officer does not exist"}, status=status.HTTP_404_NOT_FOUND,
-            )
+#         try:
+#             sales_officer = SalesOfficer.objects.get(id=id)
+#         except SalesOfficer.DoesNotExist:
+#             return Response(
+#                 {"message": "Sales officer does not exist"}, status=status.HTTP_404_NOT_FOUND,
+#             )
         
-        sales_officer.delete()
+#         sales_officer.delete()
 
-        return Response(
-            data={"message": "Sales officer deleted successfully"}, status=status.HTTP_200_OK
-        )
+#         return Response(
+#             data={"message": "Sales officer deleted successfully"}, status=status.HTTP_200_OK
+#         )
 
 
 class SalesLeadView(APIView):

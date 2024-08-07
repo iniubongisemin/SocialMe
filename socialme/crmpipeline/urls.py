@@ -3,17 +3,17 @@ from crmpipeline.views import (
     MerchantView, TrackTaskView, TrackActivityView, TrackDealView, 
     AddTeamMemberView, RemoveTeamMemberView, UpdateTeamMemberRoleView, TeamMemberRoleView, 
     TeamMemberPermissionView, TeamMemberRolePermissionView, RolePermissionsView, SalesOfficerTeamView, 
-    SalesOfficerView, DealView, DealProgression, ManagePipelineStagesAPIView, ManagePipelineView, 
+    DealView, DealProgression, ManagePipelineStagesAPIView, ManagePipelineView, 
     SalesOfficersPipelines, CreateRolesAndPermissionsAPIView, ChangeDealStageView, 
     FetchCreatedDealsView, FetchCreatedActivitiesView, FetchCreatedTasksView, LeadView, SalesLeadView, HeadOfSalesView, SuperAdminView, ActivityView, TaskView,
-    # FetchAllMerchants, SalesOfficerPipelinesAPIView, 
+    # FetchAllMerchants, SalesOfficerPipelinesAPIView, SalesOfficerView,
 )
 
 
 SALES_OFFICER_ENDPOINT = [
-    path("create-sales-officer/", SalesOfficerView.as_view()),
-    path("get-sales-officer/", SalesOfficerView.as_view()),
-    path("delete-sales-officer/", SalesOfficerView.as_view()),
+    # path("create-sales-officer/", SalesOfficerView.as_view()),
+    # path("get-sales-officer/", SalesOfficerView.as_view()),
+    # path("delete-sales-officer/", SalesOfficerView.as_view()),
     path("sales-officer-team/", SalesOfficerTeamView.as_view()),
 ]
 
