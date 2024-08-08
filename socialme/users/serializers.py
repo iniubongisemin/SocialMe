@@ -72,43 +72,43 @@ class UserAccountSerializer(serializers.ModelSerializer):
         return attrs
     
 
-class CompanySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Company
-        fields = ("id", "company_name")
+# class CompanySerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Company
+#         fields = ("id", "company_name")
 
 
-class CreateCompanySerializer(serializers.ModelSerializer):
-    user = serializers.CharField(max_length=255)
-    company_name = serializers.CharField(allow_blank=True, allow_null=True)
-    # id = serializers.CharField(allow_blank=True, allow_null=True)
-    # teams = serializers.CharField(allow_blank=True, allow_null=True)
-    # industry = serializers.CharField(allow_blank=True, allow_null=True)
+# class CreateCompanySerializer(serializers.ModelSerializer):
+#     user = serializers.CharField(max_length=255)
+#     company_name = serializers.CharField(allow_blank=True, allow_null=True)
+#     # id = serializers.CharField(allow_blank=True, allow_null=True)
+#     # teams = serializers.CharField(allow_blank=True, allow_null=True)
+#     # industry = serializers.CharField(allow_blank=True, allow_null=True)
     
 
-    class Meta:
-        model = Company
-        fields = [
-            "company_name",
-            "user",
-            # "id",
-        ]
-        # exclude = ['user']
+#     class Meta:
+#         model = Company
+#         fields = [
+#             "company_name",
+#             "user",
+#             # "id",
+#         ]
+#         # exclude = ['user']
 
-    def validate(self, attrs):
-        context = self.context
-        request = context.get("request")
-        user = request.user
-        company_name = attrs.get("company_name").title()
+#     def validate(self, attrs):
+#         context = self.context
+#         request = context.get("request")
+#         user = request.user
+#         company_name = attrs.get("company_name").title()
 
-        try:
-            Company.objects.get(company_name=company_name, user=user)
-            raise serializers.ValidationError(
-                {"message": "Company name already exists"}
-            )
+#         try:
+#             Company.objects.get(company_name=company_name, user=user)
+#             raise serializers.ValidationError(
+#                 {"message": "Company name already exists"}
+#             )
 
-        except Company.DoesNotExist:
-            pass
+#         except Company.DoesNotExist:
+#             pass
 
 
 class SuperAdminSerializer(serializers.ModelSerializer):

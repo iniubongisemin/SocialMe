@@ -107,11 +107,13 @@ class MerchantView(APIView):
             )
         
         # create merchant
-        merchant = get_object_or_404(Company, id=id)
-        # merchant = Company.objects.create(
-        #     company_name=company_name,
-        #     user=UserAccount.default_company,
-        # )
+        # merchant = get_object_or_404(Company, id=id)
+        merchant = Company.objects.filter(Company, id=id)
+        if Company.DoesNotExist:
+            merchant = Company.objects.create(
+                company_name=company_name,
+                user=UserAccount.default_company,
+            )
 
         serializer = CompanySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -874,305 +876,307 @@ class SalesOfficerTeamView(generics.ListAPIView):
 #         )
 
 
-class SalesLeadView(APIView):
-    """
-    API endpoint for onboarding, retrieving, and deleting sales leads.
+# class SalesLeadView(APIView):
+#     """
+#     API endpoint for onboarding, retrieving, and deleting sales leads.
 
-    Requires JWT authentication.
+#     Requires JWT authentication.
 
-    Attributes:
-    - authentication_classes: List of authentication classes required for access.
-    - permission_classes: List of permission classes required for access.
-    - serializer_class: Serializer class for onboarded sales lead data.
+#     Attributes:
+#     - authentication_classes: List of authentication classes required for access.
+#     - permission_classes: List of permission classes required for access.
+#     - serializer_class: Serializer class for onboarded sales lead data.
 
-    Methods:
-    - post(request): Custom method to onboard a new sales lead.
-    - get(request): Custom method to retrieve details of the authenticated sales lead.
-    - delete(request): Custom method to delete a sales lead.
+#     Methods:
+#     - post(request): Custom method to onboard a new sales lead.
+#     - get(request): Custom method to retrieve details of the authenticated sales lead.
+#     - delete(request): Custom method to delete a sales lead.
 
-    Returns:
-    - Response: Result of the requested operation.
-    """
-    authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
+#     Returns:
+#     - Response: Result of the requested operation.
+#     """
+#     authentication_classes = [JWTAuthentication]
+#     # permission_classes = [IsAuthenticated]
+#     permission_classes = [AllowAny]
 
-    def post(self, request):
-        """
-        Onboard a new sales lead.
+#     def post(self, request):
+#         """
+#         Onboard a new sales lead.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Result of the onboard operation.
-        """
+#         Returns:
+#         - Response: Result of the onboard operation.
+#         """
 
-        # Onboard sales officer
-        result = onboard_sales_lead(request.data, request.user)
-        if not result["success"]:
-            return Response(result["message"], status=result["status"])
+#         # Onboard sales officer
+#         result = onboard_sales_lead(request.data, request.user)
+#         if not result["success"]:
+#             return Response(result["message"], status=result["status"])
         
-        # Onboard team member
-        result = onboard_team_member(request.user, result["sales_lead_instance"])
-        if not result["success"]:
-            return Response(
-                {"message": "Sales lead onboarded successfully"}, status=status.HTTP_201_CREATED
-            )
+#         # Onboard team member
+#         result = onboard_team_member(request.user, result["sales_lead_instance"])
+#         if not result["success"]:
+#             return Response(
+#                 {"message": "Sales lead onboarded successfully"}, status=status.HTTP_201_CREATED
+#             )
     
-    def get(self, request):
-        """
-        Retrieve details of the authenticated sales leads.
+#     def get(self, request):
+#         """
+#         Retrieve details of the authenticated sales leads.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Details of the authenticated sales lead.
-        """
+#         Returns:
+#         - Response: Details of the authenticated sales lead.
+#         """
 
-        id = request.user.id
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+#         id = request.user.id
+#         if id is None:
+#             return Response(
+#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+#             )
         
-        try:
-            sales_lead = SalesLead.objects.get(user__id=id)
-        except SalesLead.DoesNotExist:
-            return Response(
-                {"message": f"The requested {sales_lead} does not exist"}, status=status.HTTP_404_NOT_FOUND
-            )
+#         try:
+#             sales_lead = SalesLead.objects.get(user__id=id)
+#         except SalesLead.DoesNotExist:
+#             return Response(
+#                 {"message": f"The requested {sales_lead} does not exist"}, status=status.HTTP_404_NOT_FOUND
+#             )
         
-    def delete(self, request):
-        """
-        Delete a sales lead.
+#     def delete(self, request):
+#         """
+#         Delete a sales lead.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Result of the deletion operation
-        """
+#         Returns:
+#         - Response: Result of the deletion operation
+#         """
 
-        id = request.GET.get("id", None)
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+#         id = request.GET.get("id", None)
+#         if id is None:
+#             return Response(
+#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+#             )
         
-        try:
-            sales_lead = SalesLead.objects.get(id=id)
-        except SalesLead.DoesNotExist:
-            return Response(
-                {"message": "Sales lead does not exist"}, status=status.HTTP_404_NOT_FOUND,
-            )
+#         try:
+#             sales_lead = SalesLead.objects.get(id=id)
+#         except SalesLead.DoesNotExist:
+#             return Response(
+#                 {"message": "Sales lead does not exist"}, status=status.HTTP_404_NOT_FOUND,
+#             )
         
-        sales_lead.delete()
+#         sales_lead.delete()
 
-        return Response(
-            data={"message": "Sales lead deleted successfully"}, status=status.HTTP_200_OK
-        )
+#         return Response(
+#             data={"message": "Sales lead deleted successfully"}, status=status.HTTP_200_OK
+#         )
     
 
-class HeadOfSalesView(APIView):
-    """
-    API endpoint for onboarding, retrieving, and deleting heads of sales.
+# class HeadOfSalesView(APIView):
+#     """
+#     API endpoint for onboarding, retrieving, and deleting heads of sales.
 
-    Requires JWT authentication.
+#     Requires JWT authentication.
 
-    Attributes:
-    - authentication_classes: List of authentication classes required for access.
-    - permission_classes: List of permission classes required for access.
-    - serializer_class: Serializer class for onboarded heads of sales data.
+#     Attributes:
+#     - authentication_classes: List of authentication classes required for access.
+#     - permission_classes: List of permission classes required for access.
+#     - serializer_class: Serializer class for onboarded heads of sales data.
 
-    Methods:
-    - post(request): Custom method to onboard a new head of sales.
-    - get(request): Custom method to retrieve details of the authenticated head of sales.
-    - delete(request): Custom method to delete a head of sales.
+#     Methods:
+#     - post(request): Custom method to onboard a new head of sales.
+#     - get(request): Custom method to retrieve details of the authenticated head of sales.
+#     - delete(request): Custom method to delete a head of sales.
 
-    Returns:
-    - Response: Result of the requested operation.
-    """
-    authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
+#     Returns:
+#     - Response: Result of the requested operation.
+#     """
+#     authentication_classes = [JWTAuthentication]
+#     # permission_classes = [IsAuthenticated]
+#     permission_classes = [AllowAny]
 
-    def post(self, request):
-        """
-        Onboard a new head of sales.
+#     def post(self, request):
+#         """
+#         Onboard a new head of sales.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Result of the onboard operation.
-        """
+#         Returns:
+#         - Response: Result of the onboard operation.
+#         """
 
-        # Onboard head of sales
-        result = onboard_head_of_sales(request.data, request.user)
-        if not result["success"]:
-            return Response(result["message"], status=result["status"])
+#         # Onboard head of sales
+#         result = onboard_head_of_sales(request.data, request.user)
+#         if not result["success"]:
+#             return Response(result["message"], status=result["status"])
         
-        # Onboard team member
-        result = onboard_team_member(request.user, result["head_of_sales_instance"])
-        if not result["success"]:
-            return Response(
-                {"message": "Head of Sales onboarded successfully"}, status=status.HTTP_201_CREATED
-            )
+#         # Onboard team member
+#         result = onboard_team_member(request.user, result["head_of_sales_instance"])
+#         if not result["success"]:
+#             return Response(
+#                 {"message": "Head of Sales onboarded successfully"}, status=status.HTTP_201_CREATED
+#             )
     
-    def get(self, request):
-        """
-        Retrieve details of the authenticated head of sales.
+#     def get(self, request):
+#         """
+#         Retrieve details of the authenticated head of sales.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Details of the authenticated head of sales.
-        """
+#         Returns:
+#         - Response: Details of the authenticated head of sales.
+#         """
 
-        id = request.user.id
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+#         id = request.user.id
+#         if id is None:
+#             return Response(
+#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+#             )
         
-        try:
-            head_of_sales = HeadOfSales.objects.get(user__id=id)
-        except HeadOfSales.DoesNotExist:
-            return Response(
-                {"message": f"The requested {head_of_sales} does not exist"}, status=status.HTTP_404_NOT_FOUND
-            )
+#         try:
+#             head_of_sales = HeadOfSales.objects.get(user__id=id)
+#         except HeadOfSales.DoesNotExist:
+#             return Response(
+#                 {"message": f"The requested {head_of_sales} does not exist"}, status=status.HTTP_404_NOT_FOUND
+#             )
         
-    def delete(self, request):
-        """
-        Delete a head of sales.
+#     def delete(self, request):
+#         """
+#         Delete a head of sales.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Result of the deletion operation
-        """
+#         Returns:
+#         - Response: Result of the deletion operation
+#         """
 
-        id = request.GET.get("id", None)
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+#         id = request.GET.get("id", None)
+#         if id is None:
+#             return Response(
+#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+#             )
         
-        try:
-            head_of_sales = HeadOfSales.objects.get(id=id)
-        except HeadOfSales.DoesNotExist:
-            return Response(
-                {"message": "Head of Sales does not exist"}, status=status.HTTP_404_NOT_FOUND,
-            )
+#         try:
+#             head_of_sales = HeadOfSales.objects.get(id=id)
+#         except HeadOfSales.DoesNotExist:
+#             return Response(
+#                 {"message": "Head of Sales does not exist"}, status=status.HTTP_404_NOT_FOUND,
+#             )
         
-        head_of_sales.delete()
+#         head_of_sales.delete()
 
-        return Response(
-            data={"message": "Head of Sales deleted successfully"}, status=status.HTTP_200_OK
-        )
-class SuperAdminView(APIView):
-    """
-    API endpoint for onboarding, retrieving, and deleting a super admin.
-
-    Requires JWT authentication.
-
-    Attributes:
-    - authentication_classes: List of authentication classes required for access.
-    - permission_classes: List of permission classes required for access.
-    - serializer_class: Serializer class for onboarded super admin data.
-
-    Methods:
-    - post(request): Custom method to onboard a super admin.
-    - get(request): Custom method to retrieve details of the authenticated super admin.
-    - delete(request): Custom method to delete a super admin.
-
-    Returns:
-    - Response: Result of the requested operation.
-    """
-    authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        """
-        Onboard a new super admin.
-
-        Args:
-        - request: HTTP request object.
-
-        Returns:
-        - Response: Result of the onboarding operation.
-        """
-
-        # Onboard super admin
-        result = onboard_super_admin(request.data, request.user)
-        if not result["success"]:
-            return Response(result["message"], status=result["status"])
+#         return Response(
+#             data={"message": "Head of Sales deleted successfully"}, status=status.HTTP_200_OK
+#         )
         
-        # Onboard team member
-        result = onboard_team_member(request.user, result["super_admin_instance"])
-        if not result["success"]:
-            return Response(
-                {"message": "Head of Sales onboarded successfully"}, status=status.HTTP_201_CREATED
-            )
+
+# class SuperAdminView(APIView):
+#     """
+#     API endpoint for onboarding, retrieving, and deleting a super admin.
+
+#     Requires JWT authentication.
+
+#     Attributes:
+#     - authentication_classes: List of authentication classes required for access.
+#     - permission_classes: List of permission classes required for access.
+#     - serializer_class: Serializer class for onboarded super admin data.
+
+#     Methods:
+#     - post(request): Custom method to onboard a super admin.
+#     - get(request): Custom method to retrieve details of the authenticated super admin.
+#     - delete(request): Custom method to delete a super admin.
+
+#     Returns:
+#     - Response: Result of the requested operation.
+#     """
+#     authentication_classes = [JWTAuthentication]
+#     # permission_classes = [IsAuthenticated]
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         """
+#         Onboard a new super admin.
+
+#         Args:
+#         - request: HTTP request object.
+
+#         Returns:
+#         - Response: Result of the onboarding operation.
+#         """
+
+#         # Onboard super admin
+#         result = onboard_super_admin(request.data, request.user)
+#         if not result["success"]:
+#             return Response(result["message"], status=result["status"])
+        
+#         # Onboard team member
+#         result = onboard_team_member(request.user, result["super_admin_instance"])
+#         if not result["success"]:
+#             return Response(
+#                 {"message": "Head of Sales onboarded successfully"}, status=status.HTTP_201_CREATED
+#             )
     
-    def get(self, request):
-        """
-        Retrieve details of the authenticated super admin instance.
+#     def get(self, request):
+#         """
+#         Retrieve details of the authenticated super admin instance.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Details of the authenticated super admin instance.
-        """
+#         Returns:
+#         - Response: Details of the authenticated super admin instance.
+#         """
 
-        id = request.user.id
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+#         id = request.user.id
+#         if id is None:
+#             return Response(
+#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+#             )
         
-        try:
-            super_admin = SuperAdmin.objects.get(user__id=id)
-        except SuperAdmin.DoesNotExist:
-            return Response(
-                {"message": f"The requested {super_admin} does not exist"}, status=status.HTTP_404_NOT_FOUND
-            )
+#         try:
+#             super_admin = SuperAdmin.objects.get(user__id=id)
+#         except SuperAdmin.DoesNotExist:
+#             return Response(
+#                 {"message": f"The requested {super_admin} does not exist"}, status=status.HTTP_404_NOT_FOUND
+#             )
         
-    def delete(self, request):
-        """
-        Delete a super admin.
+#     def delete(self, request):
+#         """
+#         Delete a super admin.
 
-        Args:
-        - request: HTTP request object.
+#         Args:
+#         - request: HTTP request object.
 
-        Returns:
-        - Response: Result of the deletion operation
-        """
+#         Returns:
+#         - Response: Result of the deletion operation
+#         """
 
-        id = request.GET.get("id", None)
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+#         id = request.GET.get("id", None)
+#         if id is None:
+#             return Response(
+#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+#             )
         
-        try:
-            super_admin = SuperAdmin.objects.get(id=id)
-        except SuperAdmin.DoesNotExist:
-            return Response(
-                {"message": "Head of Sales does not exist"}, status=status.HTTP_404_NOT_FOUND,
-            )
+#         try:
+#             super_admin = SuperAdmin.objects.get(id=id)
+#         except SuperAdmin.DoesNotExist:
+#             return Response(
+#                 {"message": "Head of Sales does not exist"}, status=status.HTTP_404_NOT_FOUND,
+#             )
         
-        super_admin.delete()
+#         super_admin.delete()
 
-        return Response(
-            data={"message": "Super admin deleted successfully"}, status=status.HTTP_200_OK
-        )
+#         return Response(
+#             data={"message": "Super admin deleted successfully"}, status=status.HTTP_200_OK
+#         )
     
     
 class DealView(APIView):

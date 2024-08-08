@@ -279,24 +279,6 @@ class ResendOTPView(APIView):
         return Response({'message': ('OTP resent successfully.')}, status=status.HTTP_200_OK)
 
 
-class CreateCompanyView(APIView):
-    permission_classes = [AllowAny]
-    def post(self, request):  # create a new company
-            serializer = CreateCompanySerializer(data=request.data, context={"request": request})
-            serializer.is_valid(raise_exception=True)
-            validated_data = serializer.validated_data
-
-            company = Company.create_company(user=request.user, validated_data=validated_data)
-
-            res_data = {"status": "Success",
-                        "data": {
-                            "company_name": validated_data.get("company_name"),
-                            "user": validated_data.get("user"),
-                            # "id": company.id,
-                        },
-                    }
-
-            return Response(res_data, status=status.HTTP_200_OK)
 
 
 class MerchantView(APIView):
@@ -483,7 +465,7 @@ class EditTeam(APIView):
                 status=status.HTTP_400_BAD_REQUEST)
 
 
-class CreateSuperAdminView(APIView):
+class SuperAdminView(APIView):
     permission_classes = [AllowAny]
     # permission_classes = [IsAuthenticated]
 
@@ -505,6 +487,30 @@ class CreateSuperAdminView(APIView):
             return Response({"detail": "Super Admin already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    def get(self, request):
+        """
+        Retrieve details of the authenticated super admin instance.
+
+        Args:
+        - request: HTTP request object.
+
+        Returns:
+        - Response: Details of the authenticated super admin instance.
+        """
+
+        id = request.user.id
+        if id is None:
+            return Response(
+                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            super_admin = SuperAdmin.objects.get(user__id=id)
+        except SuperAdmin.DoesNotExist:
+            return Response(
+                {"message": f"The requested {super_admin} does not exist"}, status=status.HTTP_404_NOT_FOUND
+            )
     
     def delete(self, request):
         params = request.query_params
@@ -534,7 +540,7 @@ class CreateSuperAdminView(APIView):
             )
 
 
-class CreateHeadOfSalesView(APIView):
+class HeadOfSalesView(APIView):
     permission_classes = [AllowAny]
     # permission_classes = [IsAuthenticated]
 
@@ -559,6 +565,30 @@ class CreateHeadOfSalesView(APIView):
             return Response({"detail": "Head of Sales already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    def get(self, request):
+        """
+        Retrieve details of the authenticated head of sales.
+
+        Args:
+        - request: HTTP request object.
+
+        Returns:
+        - Response: Details of the authenticated head of sales.
+        """
+
+        id = request.user.id
+        if id is None:
+            return Response(
+                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            head_of_sales = HeadOfSales.objects.get(user__id=id)
+        except HeadOfSales.DoesNotExist:
+            return Response(
+                {"message": f"The requested {head_of_sales} does not exist"}, status=status.HTTP_404_NOT_FOUND
+            )
     
     def delete(self, request):
         params = request.query_params
@@ -588,7 +618,7 @@ class CreateHeadOfSalesView(APIView):
             )
 
     
-class CreateSalesLeadView(APIView):
+class SalesLeadView(APIView):
     permission_classes = [AllowAny]
     # permission_classes = [IsAuthenticated]
 
@@ -613,6 +643,30 @@ class CreateSalesLeadView(APIView):
             return Response({"detail": "Sales lead already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    def get(self, request):
+        """
+        Retrieve details of the authenticated sales lead.
+
+        Args:
+        - request: HTTP request object.
+
+        Returns:
+        - Response: Details of the authenticated sales lead.
+        """
+
+        id = request.user.id
+        if id is None:
+            return Response(
+                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            sales_lead = SalesLead.objects.get(user__id=id)
+        except SalesLead.DoesNotExist:
+            return Response(
+                {"message": f"The requested {sales_lead} does not exist"}, status=status.HTTP_404_NOT_FOUND
+            )
     
     def delete(self, request):
         params = request.query_params
@@ -722,12 +776,24 @@ class SalesOfficerView(APIView):
             )
 
 
+# class CreateCompanyView(APIView):
+#     permission_classes = [AllowAny]
+#     def post(self, request):  # create a new company
+#             serializer = CreateCompanySerializer(data=request.data, context={"request": request})
+#             serializer.is_valid(raise_exception=True)
+#             validated_data = serializer.validated_data
 
+#             company = Company.create_company(user=request.user, validated_data=validated_data)
 
+#             res_data = {"status": "Success",
+#                         "data": {
+#                             "company_name": validated_data.get("company_name"),
+#                             "user": validated_data.get("user"),
+#                             # "id": company.id,
+#                         },
+#                     }
 
-
-
-
+#             return Response(res_data, status=status.HTTP_200_OK)
 
 
 # class LoginWithOTP(APIView):
