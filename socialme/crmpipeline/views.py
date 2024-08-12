@@ -37,131 +37,30 @@ from crmpipeline.reusables import (
 )
 from crmpipeline.utils import DataResponse, stage_notification
 
-from users.models import Company, UserAccount, TeamMember, SuperAdmin, HeadOfSales, SalesLead, SalesOfficer
-# from requisition.views import CreateListAndDelCompany
-from users.serializers import CompanySerializer, HeadOfSalesSerializer, SalesLeadSerializer, SuperAdminSerializer, SalesOfficerSerializer 
+from simplejwtauth.models import Company, SuperAdmin, HeadOfSales, SalesLead, SalesOfficer  # TeamMember 
+from django.contrib.auth.models import User
+from simplejwtauth.serializers import HeadOfSalesSerializer, SalesLeadSerializer, SuperAdminSerializer, SalesOfficerSerializer 
 from crmpipeline.models import (
-    Stage, Deal, Pipeline, Activity, Task, TeamMemberRole, TeamMemberPermission, TeamMemberRolePermission,  
-    Lead, # DealProgression, LeadsDataUpload, HeadOfSales, TaskNotification, DealsComment, TaskComment, 
-    # MerchantDealPipeline, DealRequirement, EmaiLog, TaskSchedule, Report, DealPipeline, 
+    Stage, Deal, Pipeline, Activity, Task, Lead, TeamMemberRole, 
+    # TeamMemberPermission, TeamMemberRolePermission, DealProgression, LeadsDataUpload, HeadOfSales, 
+    # TaskNotification, DealsComment, TaskComment, MerchantDealPipeline, DealRequirement, EmaiLog, TaskSchedule, Report, DealPipeline, 
 )
 
 from crmpipeline.serializers import (
-    PipelineSerializer, StageSerializer, DealSerializer, TaskSerializer, TeamMemberRoleSerializer, LeadSerializer,
-    TeamMemberPermissionSerializer, CreateDealSerializer, TeamMemberRolePermissionSerializer, TeamMemberSerializer, 
-    ChangeDealStageSerializer, NewTeamMemberSerializer, ActivitySerializer, # DealProgressionStageSerializer,
-    #  TaskNotificationSerializer, LeadsDataUploadSerializer, 
+    PipelineSerializer, StageSerializer, DealSerializer, TaskSerializer, ActivitySerializer, LeadSerializer, 
+    # TeamMemberRoleSerializer, TeamMemberPermissionSerializer, CreateDealSerializer, TeamMemberRolePermissionSerializer, 
+    # TeamMemberSerializer, ChangeDealStageSerializer, NewTeamMemberSerializer, DealProgressionStageSerializer,
+    # TaskNotificationSerializer, LeadsDataUploadSerializer, 
 )
 
-from crmpipeline.permissions import (
-    CanManageDeal,
-    CanManageStage,
-    CanManagePipeline,
-    # CanManageMerchantsProgress,
-    create_roles_and_permissions,
-)
+# from crmpipeline.permissions import (
+#     CanManageDeal,
+#     CanManageStage,
+#     CanManagePipeline,
+#     CanManageMerchantsProgress,
+#     create_roles_and_permissions,
+# )
 
-
-class MerchantView(APIView):
-    """
-    API endpoint for handling merchant-related operations.
-
-    Requires JWT authentication.
-    """
-
-    authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
-
-    serializer_class = CompanySerializer
-
-    pagination_class = CustomPagination
-
-    def post(self, request):
-        """
-        Create a new merchant.
-
-        Required Parameters:
-        - company_name: Name of the company.
-        - id: ID of the company.
-
-        Returns:
-            - 201 Created: Company created successfully.
-            - 400 Bad Request: If any required parameter is missing or invalid.
-        """
-
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        company_name = request.data.get("company_name",)
-        # company_name = serializer.validated_data.get["company_name"]
-        # id = serializer.validated_data.get["id"]
-        id = serializer.validated_data.get("id",)
-
-        # check if merchant exists
-        existing_merchant = Company.objects.filter(company_name=company_name, id=id)
-        if existing_merchant.exists():
-            return Response(
-                {"message": "Merchant already exists"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        
-        # create merchant
-        # merchant = get_object_or_404(Company, id=id)
-        merchant = Company.objects.filter(Company, id=id)
-        if Company.DoesNotExist:
-            merchant = Company.objects.create(
-                company_name=company_name,
-                user=UserAccount.default_company,
-            )
-
-        serializer = CompanySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        # merchant_serialized_data = CompanySerializer(merchant).data
-
-        return Response(
-            {
-                "message": "Merchant created successfully",
-                # "company": merchant_serialized_data,
-                "company": serializer,
-            },
-            status=status.HTTP_201_CREATED,
-        )
-
-    def get(self, request):
-        """
-        Retrieve a list of all merchants.
-
-        Returns:
-        - Paginated list of merchant details.
-
-        Note:
-        - Requires JWT authentication.
-        """
-
-        merchants = Company.objects.all()
-        paginator = CustomPagination()
-        result_page = paginator.paginate_queryset(merchants, request)
-        serializer = CompanySerializer(result_page, many=True)
-        return paginator.get_paginated_response(serializer.data)
-
-# class FetchAllMerchants(APIView):
-#     """
-#     Retrieve a list of all merchants.
-
-#     Returns:
-#     - 200 OK: List of all merchants with their details.
-
-#     Note:
-#     - This endpoint does not require authentication.
-#     """
-
-#     def get(self, request):
-#         merchants = Company.objects.all()
-#         serializer = CompanySerializer(merchants, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-    
 
 class LeadView(APIView):
     permission_classes = [AllowAny]
@@ -313,77 +212,77 @@ class TrackDealView(APIView):
         return Response({'message': 'Viewer count updated successfully'}, status=status.HTTP_200_OK)
 
 
-class AddTeamMemberView(CreateAPIView):
-    """
-    API endpoint for adding team members to manage a merchant.
+# class AddTeamMemberView(CreateAPIView):
+#     """
+#     API endpoint for adding team members to manage a merchant.
 
-    Requires JWT authentication.
+#     Requires JWT authentication.
 
-    Attributes:
-    - queryset: Queryset of all team members.
-    - serializer_class: Serializer class for team member data.
-    - permission_classes: Permission classes required for access.
+#     Attributes:
+#     - queryset: Queryset of all team members.
+#     - serializer_class: Serializer class for team member data.
+#     - permission_classes: Permission classes required for access.
 
-    Methods:
-    - perform_create(serializer): Custom method to perform the creation of a team member instance.
-    - create(request, *args, **kwargs): Custom method to handle creation requests, supports bulk addition of team members.
+#     Methods:
+#     - perform_create(serializer): Custom method to perform the creation of a team member instance.
+#     - create(request, *args, **kwargs): Custom method to handle creation requests, supports bulk addition of team members.
 
-    Returns:
-    - 201 Created: Team member(s) added successfully.
-    - 400 Bad Request: If the provided data is invalid or a recruiter with the provided email does not exist.
-    """
+#     Returns:
+#     - 201 Created: Team member(s) added successfully.
+#     - 400 Bad Request: If the provided data is invalid or a recruiter with the provided email does not exist.
+#     """
 
-    queryset = TeamMember.objects.all()
-    serializer_class = TeamMemberSerializer
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
+#     queryset = TeamMember.objects.all()
+#     serializer_class = TeamMemberSerializer
+#     # permission_classes = [IsAuthenticated]
+#     permission_classes = [AllowAny]
 
-    def perform_create(self, serializer):
-        """
-        Perform creation of a team member instance.
+#     def perform_create(self, serializer):
+#         """
+#         Perform creation of a team member instance.
 
-        Args:
-        - serializer: Serializer instance for team member data.
+#         Args:
+#         - serializer: Serializer instance for team member data.
 
-        Raises:
-        - ValidationError: If a recruiter with the provided email does not exist.
-        """
+#         Raises:
+#         - ValidationError: If a recruiter with the provided email does not exist.
+#         """
 
-        try:
-            salesofficer = SalesOfficer.objects.get(user=self.request.user)
-        except ObjectDoesNotExist:
-            raise ValidationError("SalesOfficer with the provided email does not exist.")
+#         try:
+#             salesofficer = SalesOfficer.objects.get(user=self.request.user)
+#         except ObjectDoesNotExist:
+#             raise ValidationError("SalesOfficer with the provided email does not exist.")
 
-        # Set the company and member fields of the TeamMember instance
-        merchant = salesofficer.merchant
-        member = salesofficer
-        serializer.save(merchant=merchant, member=member)
+#         # Set the company and member fields of the TeamMember instance
+#         merchant = salesofficer.merchant
+#         member = salesofficer
+#         serializer.save(merchant=merchant, member=member)
 
-    def create(self, request, *args, **kwargs):
-        """
-        Create method to handle creation requests, supports bulk addition of team members.
+#     def create(self, request, *args, **kwargs):
+#         """
+#         Create method to handle creation requests, supports bulk addition of team members.
 
-        Args:
-        - request: HTTP request object.
-        - *args, **kwargs: Additional arguments and keyword arguments.
+#         Args:
+#         - request: HTTP request object.
+#         - *args, **kwargs: Additional arguments and keyword arguments.
 
-        Returns:
-        - Response: HTTP response containing the result of the operation.
-        """
+#         Returns:
+#         - Response: HTTP response containing the result of the operation.
+#         """
 
-        # Support bulk addition by handling a list of team members
-        data = request.data
-        if isinstance(data, list):
-            serializer = self.get_serializer(data=data, many=True)
-        else:
-            serializer = self.get_serializer(data=data)
+#         # Support bulk addition by handling a list of team members
+#         data = request.data
+#         if isinstance(data, list):
+#             serializer = self.get_serializer(data=data, many=True)
+#         else:
+#             serializer = self.get_serializer(data=data)
 
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
+#         serializer.is_valid(raise_exception=True)
+#         self.perform_create(serializer)
+#         headers = self.get_success_headers(serializer.data)
+#         return Response(
+#             serializer.data, status=status.HTTP_201_CREATED, headers=headers
+#         )
 
     
 # class InviteTeamMemberView(APIView):
@@ -428,755 +327,755 @@ class AddTeamMemberView(CreateAPIView):
 #     pass
 
 
-class RemoveTeamMemberView(DestroyAPIView):
-    """
-    API endpoint for removing a team member from managing a merchant.
-
-    Requires JWT authentication.
-
-    Attributes:
-    - queryset: Queryset of all team members.
-    - permission_classes: Permission classes required for access.
-
-    Methods:
-    - perform_destroy(instance): Custom method to perform the deletion of a team member instance.
-    - get_object(): Custom method to retrieve the team member instance to be deleted.
-    - destroy(request, *args, **kwargs): Custom method to handle deletion requests.
-
-    Returns:
-    - 204 No Content: Team member removed successfully.
-    - 403 Forbidden: If the requesting recruiter is not authorized to remove the team member.
-    - 404 Not Found: If the team member to be removed does not exist.
-    """
-
-    queryset = TeamMember.objects.all()
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
-
-    def perform_destroy(self, instance):
-        """
-        Perform deletion of a team member instance.
-
-        Args:
-        - instance: Team member instance to be deleted.
-        """
-
-        instance.delete()
-
-    def get_object(self):
-        """
-        Retrieve the team member instance to be deleted.
-
-        Returns:
-        - Team member instance to be deleted.
-
-        Raises:
-        - Http404: If the team member to be removed does not exist.
-        """
-
-        queryset = self.get_queryset()
-        try:
-            email = self.request.data.get("recruiter_email")
-            instance = queryset.get(member__user__email=email)
-        except ObjectDoesNotExist:
-            raise Http404("Team member not found.")
-        self.check_object_permissions(self.request, instance)
-        return instance
-
-    def destroy(self, request, *args, **kwargs):
-        """
-        Handle deletion requests for removing a team member.
-
-        Returns:
-        - Response: HTTP response indicating the result of the operation.
-        """
-
-        instance = self.get_object()
-
-        # Check if the recruiter requesting the removal is the same as the team member being removed
-        sales_officer = SalesOfficer.objects.get(user=request.user)
-        if instance.member != sales_officer:
-            return Response(status=status.HTTP_403_FORBIDDEN)
-
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-
-class UpdateTeamMemberRoleView(UpdateAPIView):
-    """
-    API endpoint for updating the role of a team member that is managing a merchant.
-
-    Requires JWT authentication.
-
-    Attributes:
-    - queryset: Queryset of all team members.
-    - serializer_class: Serializer class for team member data.
-    - permission_classes: Permission classes required for access.
-
-    Methods:
-    - perform_update(serializer): Custom method to perform the update of a team member instance.
-    - update(request, *args, **kwargs): Custom method to handle update requests.
-
-    Returns:
-    - Updated team member details.
-    """
-
-    queryset = TeamMember.objects.all()
-    serializer_class = TeamMemberSerializer
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
-
-    def perform_update(self, serializer):
-        """
-        Perform update of a team member instance.
-
-        Args:
-        - serializer: Serializer instance for team member data.
-        """
-
-        serializer.save()
-
-    def update(self, request, *args, **kwargs):
-        """
-        Handle update requests for updating the role of a team member.
-
-        Returns:
-        - Response: HTTP response containing the updated team member details.
-        """
-
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data)
-
-
-class TeamMemberRoleView(APIView):
-    """
-    API endpoint for retrieving team member roles.
-
-    Attributes:
-    - None
-
-    Methods:
-    - get(request, id=None): Custom method to handle retrieval of team member roles.
-
-    Returns:
-    - Response: List of all team member roles or details of a specific role.
-    """
-
-    def get(self, request, id=None):
-        """
-        Retrieve team member roles.
-
-        Args:
-        - request: HTTP request object.
-        - id (optional): Identifier of the specific team member role to retrieve.
-
-        Returns:
-        - Response: List of all team member roles or details of a specific role.
-        """
-
-        if id:
-            role = TeamMemberRole.objects.get(id=id)
-            serializer = TeamMemberRoleSerializer(role)
-        else:
-            roles = TeamMemberRole.objects.all()
-            serializer = TeamMemberRoleSerializer(roles, many=True)
-        return Response(serializer.data)
-
-
-class TeamMemberPermissionView(APIView):
-    """
-    API endpoint for retrieving team member permissions.
-
-    Attributes:
-    - None
-
-    Methods:
-    - get(request, id=None): Custom method to handle retrieval of team member permissions.
-
-    Returns:
-    - Response: List of all team member permissions or details of a specific permission.
-    """
-
-    def get(self, request, id=None):
-        """
-        Retrieve team member permissions.
-
-        Args:
-        - request: HTTP request object.
-        - id (optional): Identifier of the specific team member permission to retrieve.
-
-        Returns:
-        - Response: List of all team member permissions or details of a specific permission.
-        """
-
-        if id:
-            permission = TeamMemberPermission.objects.get(id=id)
-            serializer = TeamMemberPermissionSerializer(permission)
-        else:
-            permissions = TeamMemberPermission.objects.all()
-            serializer = TeamMemberPermissionSerializer(permissions, many=True)
-        return Response(serializer.data)
-
-
-class TeamMemberRolePermissionView(APIView):
-    """
-    API endpoint for updating team member role permissions.
-
-    Attributes:
-    - None
-
-    Methods:
-    - patch(request, id): Custom method to handle partial updates of team member role permissions.
-
-    Returns:
-    - Response: Updated team member role permission details.
-    """
-
-    def patch(self, request, id):
-        """
-        Partially update team member role permissions.
-
-        Args:
-        - request: HTTP request object.
-        - id: Identifier of the team member role permission to update.
-
-        Returns:
-        - Response: Updated team member role permission details.
-        """
-
-        role_permission = get_object_or_404(TeamMemberRolePermission, id=id)
-
-        # Assuming 'permission' is a list of permission IDs in the request
-        permission_ids = request.data.get("permission", [])
-        if not isinstance(permission_ids, list):
-            return Response(
-                {"permission": ["Invalid data. Expected a list."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        permissions = []
-        for permission_id in permission_ids:
-            permission = get_object_or_404(TeamMemberPermission, id=permission_id)
-            permissions.append(permission)
-
-        # Update the instance directly
-        role_permission.permission.set(permissions)
-
-        # Optionally, update other fields
-        role_permission.role = request.data.get("role", role_permission.role)
-        role_permission.company = request.data.get("company", role_permission.company)
-        role_permission.save()
-
-        # Serialize the updated instance
-        serializer = TeamMemberRolePermissionSerializer(role_permission)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class RolePermissionsView(APIView):
-    """
-    API endpoint for retrieving permissions associated with a specific merchant.
-
-    Attributes:
-    - None
-
-    Methods:
-    - get(request, role_id): Custom method to retrieve role permissions.
-
-    Returns:
-    - Response: Permissions associated with the specified role.
-    """
-
-    def get(self, request, role_id):
-        """
-        Retrieve permissions associated with a specific merchant.
-
-        Args:
-        - request: HTTP request object.
-        - role_id: Identifier of the role to retrieve permissions for.
-
-        Returns:
-        - Response: Permissions associated with the specified role.
-        """
-
-        merchant = request.user.merchant
-        company = merchant.company
-        role = get_object_or_404(TeamMemberRole, id=role_id)
-        role_permissions = TeamMemberRolePermission.objects.filter(
-            role=role, company=company
-        ).first()
-        if role_permissions:
-            # permissions = role_permissions.permission.values_list('name', flat=True)
-            # return Response({'permissions': permissions})
-            serializer = TeamMemberRolePermissionSerializer(role_permissions)
-            return Response(serializer.data)
-        else:
-            return Response(
-                {"error": "Role permissions not found for the merchant."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        
-
-class SalesOfficerTeamView(generics.ListAPIView):
-    """
-    API endpoint for retrieving the team members associated with the salesofficer's company.
-
-    Requires JWT authentication.
-
-    Attributes:
-    - serializer_class: Serializer class for team member data.
-    - permission_classes: Permission classes required for access.
-
-    Methods:
-    - get_queryset(): Custom method to retrieve the queryset of team members.
-
-    Returns:
-    - List of team members associated with the salesofficer's company.
-    """
-
-    serializer_class = NewTeamMemberSerializer
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
-
-    def get_queryset(self):
-        """
-        Retrieve the queryset of team members associated with the salesofficer's company.
-
-        Returns:
-        - Queryset: List of team members associated with the salesofficer's company.
-
-        Note:
-        - Requires JWT authentication.
-        """
-
-        sales_officer_instance = None
-        if hasattr(self.request.user, "salesofficer"):
-            sales_officer_instance = self.request.user.sales_officer
-
-        if sales_officer_instance is None:
-            return Response(
-                {"message": "Salesofficer does not exist"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        user = self.request.user
-        sales_officer = get_object_or_404(SalesOfficer, user=user)
-
-        # Check if the recruiter is a team member
-        team_memberships = TeamMember.objects.filter(member=sales_officer)
-
-        if team_memberships.exists():
-            # Get the company from the first team membership (assuming the salesofficer can belong to only one company)
-            merchant = team_memberships.first().company
-
-            # Get all team members for the salesofficer's company
-            return TeamMember.objects.filter(company=merchant)
-
-
-# class SalesOfficerView(APIView):
+# class RemoveTeamMemberView(DestroyAPIView):
 #     """
-#     API endpoint for onboarding, retrieving, and deleting sales officers.
+#     API endpoint for removing a team member from managing a merchant.
 
 #     Requires JWT authentication.
 
 #     Attributes:
-#     - authentication_classes: List of authentication classes required for access.
-#     - permission_classes: List of permission classes required for access.
-#     - serializer_class: Serializer class for onboarded sales officer data.
+#     - queryset: Queryset of all team members.
+#     - permission_classes: Permission classes required for access.
 
 #     Methods:
-#     - post(request): Custom method to onboard a new sales officer.
-#     - get(request): Custom method to retrieve details of the authenticated sales officer.
-#     - delete(request): Custom method to delete a sales officer.
+#     - perform_destroy(instance): Custom method to perform the deletion of a team member instance.
+#     - get_object(): Custom method to retrieve the team member instance to be deleted.
+#     - destroy(request, *args, **kwargs): Custom method to handle deletion requests.
 
 #     Returns:
-#     - Response: Result of the requested operation.
+#     - 204 No Content: Team member removed successfully.
+#     - 403 Forbidden: If the requesting recruiter is not authorized to remove the team member.
+#     - 404 Not Found: If the team member to be removed does not exist.
 #     """
-#     authentication_classes = [JWTAuthentication]
+
+#     queryset = TeamMember.objects.all()
 #     # permission_classes = [IsAuthenticated]
 #     permission_classes = [AllowAny]
 
-#     def post(self, request):
+#     def perform_destroy(self, instance):
 #         """
-#         Onboard a new sales officer.
+#         Perform deletion of a team member instance.
 
 #         Args:
-#         - request: HTTP request object.
-
-#         Returns:
-#         - Response: Result of the onboard operation.
+#         - instance: Team member instance to be deleted.
 #         """
 
-#         # Onboard sales officer
-#         result = onboard_sales_officer(request.data, request.user)
-#         if not result["success"]:
-#             return Response(result["message"], status=result["status"])
-        
-#         # Onboard team member
-#         result = onboard_team_member(request.user, result["sales_officer_instance"])
-#         if not result["success"]:
-#             return Response(
-#                 {"message": "Sales officer onboarded successfully"}, status=status.HTTP_201_CREATED
-#             )
+#         instance.delete()
+
+#     def get_object(self):
+#         """
+#         Retrieve the team member instance to be deleted.
+
+#         Returns:
+#         - Team member instance to be deleted.
+
+#         Raises:
+#         - Http404: If the team member to be removed does not exist.
+#         """
+
+#         queryset = self.get_queryset()
+#         try:
+#             email = self.request.data.get("recruiter_email")
+#             instance = queryset.get(member__user__email=email)
+#         except ObjectDoesNotExist:
+#             raise Http404("Team member not found.")
+#         self.check_object_permissions(self.request, instance)
+#         return instance
+
+#     def destroy(self, request, *args, **kwargs):
+#         """
+#         Handle deletion requests for removing a team member.
+
+#         Returns:
+#         - Response: HTTP response indicating the result of the operation.
+#         """
+
+#         instance = self.get_object()
+
+#         # Check if the recruiter requesting the removal is the same as the team member being removed
+#         sales_officer = SalesOfficer.objects.get(user=request.user)
+#         if instance.member != sales_officer:
+#             return Response(status=status.HTTP_403_FORBIDDEN)
+
+#         self.perform_destroy(instance)
+#         return Response(status=status.HTTP_204_NO_CONTENT)
     
-#     def get(self, request):
-#         """
-#         Retrieve details of the authenticated sales officers.
 
-#         Args:
-#         - request: HTTP request object.
-
-#         Returns:
-#         - Response: Details of the authenticated sales officer.
-#         """
-
-#         id = request.user.id
-#         if id is None:
-#             return Response(
-#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-#             )
-        
-#         try:
-#             sales_officer = SalesOfficer.objects.get(user__id=id)
-#         except SalesOfficer.DoesNotExist:
-#             return Response(
-#                 {"message": f"The requested {sales_officer} does not exist"}, status=status.HTTP_404_NOT_FOUND
-#             )
-        
-#     def delete(self, request):
-#         """
-#         Delete a sales officer.
-
-#         Args:
-#         - request: HTTP request object.
-
-#         Returns:
-#         - Response: Result of the deletion operation
-#         """
-
-#         id = request.GET.get("id", None)
-#         if id is None:
-#             return Response(
-#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-#             )
-        
-#         try:
-#             sales_officer = SalesOfficer.objects.get(id=id)
-#         except SalesOfficer.DoesNotExist:
-#             return Response(
-#                 {"message": "Sales officer does not exist"}, status=status.HTTP_404_NOT_FOUND,
-#             )
-        
-#         sales_officer.delete()
-
-#         return Response(
-#             data={"message": "Sales officer deleted successfully"}, status=status.HTTP_200_OK
-#         )
-
-
-# class SalesLeadView(APIView):
+# class UpdateTeamMemberRoleView(UpdateAPIView):
 #     """
-#     API endpoint for onboarding, retrieving, and deleting sales leads.
+#     API endpoint for updating the role of a team member that is managing a merchant.
 
 #     Requires JWT authentication.
 
 #     Attributes:
-#     - authentication_classes: List of authentication classes required for access.
-#     - permission_classes: List of permission classes required for access.
-#     - serializer_class: Serializer class for onboarded sales lead data.
+#     - queryset: Queryset of all team members.
+#     - serializer_class: Serializer class for team member data.
+#     - permission_classes: Permission classes required for access.
 
 #     Methods:
-#     - post(request): Custom method to onboard a new sales lead.
-#     - get(request): Custom method to retrieve details of the authenticated sales lead.
-#     - delete(request): Custom method to delete a sales lead.
+#     - perform_update(serializer): Custom method to perform the update of a team member instance.
+#     - update(request, *args, **kwargs): Custom method to handle update requests.
 
 #     Returns:
-#     - Response: Result of the requested operation.
+#     - Updated team member details.
 #     """
-#     authentication_classes = [JWTAuthentication]
+
+#     queryset = TeamMember.objects.all()
+#     serializer_class = TeamMemberSerializer
 #     # permission_classes = [IsAuthenticated]
 #     permission_classes = [AllowAny]
 
-#     def post(self, request):
+#     def perform_update(self, serializer):
 #         """
-#         Onboard a new sales lead.
+#         Perform update of a team member instance.
 
 #         Args:
-#         - request: HTTP request object.
+#         - serializer: Serializer instance for team member data.
+#         """
+
+#         serializer.save()
+
+#     def update(self, request, *args, **kwargs):
+#         """
+#         Handle update requests for updating the role of a team member.
 
 #         Returns:
-#         - Response: Result of the onboard operation.
+#         - Response: HTTP response containing the updated team member details.
 #         """
 
-#         # Onboard sales officer
-#         result = onboard_sales_lead(request.data, request.user)
-#         if not result["success"]:
-#             return Response(result["message"], status=result["status"])
-        
-#         # Onboard team member
-#         result = onboard_team_member(request.user, result["sales_lead_instance"])
-#         if not result["success"]:
-#             return Response(
-#                 {"message": "Sales lead onboarded successfully"}, status=status.HTTP_201_CREATED
-#             )
-    
-#     def get(self, request):
-#         """
-#         Retrieve details of the authenticated sales leads.
+#         partial = kwargs.pop("partial", False)
+#         instance = self.get_object()
+#         serializer = self.get_serializer(instance, data=request.data, partial=partial)
+#         serializer.is_valid(raise_exception=True)
+#         self.perform_update(serializer)
+#         return Response(serializer.data)
 
-#         Args:
-#         - request: HTTP request object.
 
-#         Returns:
-#         - Response: Details of the authenticated sales lead.
-#         """
-
-#         id = request.user.id
-#         if id is None:
-#             return Response(
-#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-#             )
-        
-#         try:
-#             sales_lead = SalesLead.objects.get(user__id=id)
-#         except SalesLead.DoesNotExist:
-#             return Response(
-#                 {"message": f"The requested {sales_lead} does not exist"}, status=status.HTTP_404_NOT_FOUND
-#             )
-        
-#     def delete(self, request):
-#         """
-#         Delete a sales lead.
-
-#         Args:
-#         - request: HTTP request object.
-
-#         Returns:
-#         - Response: Result of the deletion operation
-#         """
-
-#         id = request.GET.get("id", None)
-#         if id is None:
-#             return Response(
-#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-#             )
-        
-#         try:
-#             sales_lead = SalesLead.objects.get(id=id)
-#         except SalesLead.DoesNotExist:
-#             return Response(
-#                 {"message": "Sales lead does not exist"}, status=status.HTTP_404_NOT_FOUND,
-#             )
-        
-#         sales_lead.delete()
-
-#         return Response(
-#             data={"message": "Sales lead deleted successfully"}, status=status.HTTP_200_OK
-#         )
-    
-
-# class HeadOfSalesView(APIView):
+# class TeamMemberRoleView(APIView):
 #     """
-#     API endpoint for onboarding, retrieving, and deleting heads of sales.
+#     API endpoint for retrieving team member roles.
+
+#     Attributes:
+#     - None
+
+#     Methods:
+#     - get(request, id=None): Custom method to handle retrieval of team member roles.
+
+#     Returns:
+#     - Response: List of all team member roles or details of a specific role.
+#     """
+
+#     def get(self, request, id=None):
+#         """
+#         Retrieve team member roles.
+
+#         Args:
+#         - request: HTTP request object.
+#         - id (optional): Identifier of the specific team member role to retrieve.
+
+#         Returns:
+#         - Response: List of all team member roles or details of a specific role.
+#         """
+
+#         if id:
+#             role = TeamMemberRole.objects.get(id=id)
+#             serializer = TeamMemberRoleSerializer(role)
+#         else:
+#             roles = TeamMemberRole.objects.all()
+#             serializer = TeamMemberRoleSerializer(roles, many=True)
+#         return Response(serializer.data)
+
+
+# class TeamMemberPermissionView(APIView):
+#     """
+#     API endpoint for retrieving team member permissions.
+
+#     Attributes:
+#     - None
+
+#     Methods:
+#     - get(request, id=None): Custom method to handle retrieval of team member permissions.
+
+#     Returns:
+#     - Response: List of all team member permissions or details of a specific permission.
+#     """
+
+#     def get(self, request, id=None):
+#         """
+#         Retrieve team member permissions.
+
+#         Args:
+#         - request: HTTP request object.
+#         - id (optional): Identifier of the specific team member permission to retrieve.
+
+#         Returns:
+#         - Response: List of all team member permissions or details of a specific permission.
+#         """
+
+#         if id:
+#             permission = TeamMemberPermission.objects.get(id=id)
+#             serializer = TeamMemberPermissionSerializer(permission)
+#         else:
+#             permissions = TeamMemberPermission.objects.all()
+#             serializer = TeamMemberPermissionSerializer(permissions, many=True)
+#         return Response(serializer.data)
+
+
+# class TeamMemberRolePermissionView(APIView):
+#     """
+#     API endpoint for updating team member role permissions.
+
+#     Attributes:
+#     - None
+
+#     Methods:
+#     - patch(request, id): Custom method to handle partial updates of team member role permissions.
+
+#     Returns:
+#     - Response: Updated team member role permission details.
+#     """
+
+#     def patch(self, request, id):
+#         """
+#         Partially update team member role permissions.
+
+#         Args:
+#         - request: HTTP request object.
+#         - id: Identifier of the team member role permission to update.
+
+#         Returns:
+#         - Response: Updated team member role permission details.
+#         """
+
+#         role_permission = get_object_or_404(TeamMemberRolePermission, id=id)
+
+#         # Assuming 'permission' is a list of permission IDs in the request
+#         permission_ids = request.data.get("permission", [])
+#         if not isinstance(permission_ids, list):
+#             return Response(
+#                 {"permission": ["Invalid data. Expected a list."]},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
+
+#         permissions = []
+#         for permission_id in permission_ids:
+#             permission = get_object_or_404(TeamMemberPermission, id=permission_id)
+#             permissions.append(permission)
+
+#         # Update the instance directly
+#         role_permission.permission.set(permissions)
+
+#         # Optionally, update other fields
+#         role_permission.role = request.data.get("role", role_permission.role)
+#         role_permission.company = request.data.get("company", role_permission.company)
+#         role_permission.save()
+
+#         # Serialize the updated instance
+#         serializer = TeamMemberRolePermissionSerializer(role_permission)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# class RolePermissionsView(APIView):
+#     """
+#     API endpoint for retrieving permissions associated with a specific merchant.
+
+#     Attributes:
+#     - None
+
+#     Methods:
+#     - get(request, role_id): Custom method to retrieve role permissions.
+
+#     Returns:
+#     - Response: Permissions associated with the specified role.
+#     """
+
+#     def get(self, request, role_id):
+#         """
+#         Retrieve permissions associated with a specific merchant.
+
+#         Args:
+#         - request: HTTP request object.
+#         - role_id: Identifier of the role to retrieve permissions for.
+
+#         Returns:
+#         - Response: Permissions associated with the specified role.
+#         """
+
+#         merchant = request.user.merchant
+#         company = merchant.company
+#         role = get_object_or_404(TeamMemberRole, id=role_id)
+#         role_permissions = TeamMemberRolePermission.objects.filter(
+#             role=role, company=company
+#         ).first()
+#         if role_permissions:
+#             # permissions = role_permissions.permission.values_list('name', flat=True)
+#             # return Response({'permissions': permissions})
+#             serializer = TeamMemberRolePermissionSerializer(role_permissions)
+#             return Response(serializer.data)
+#         else:
+#             return Response(
+#                 {"error": "Role permissions not found for the merchant."},
+#                 status=status.HTTP_404_NOT_FOUND,
+#             )
+        
+
+# class SalesOfficerTeamView(generics.ListAPIView):
+#     """
+#     API endpoint for retrieving the team members associated with the salesofficer's company.
 
 #     Requires JWT authentication.
 
 #     Attributes:
-#     - authentication_classes: List of authentication classes required for access.
-#     - permission_classes: List of permission classes required for access.
-#     - serializer_class: Serializer class for onboarded heads of sales data.
+#     - serializer_class: Serializer class for team member data.
+#     - permission_classes: Permission classes required for access.
 
 #     Methods:
-#     - post(request): Custom method to onboard a new head of sales.
-#     - get(request): Custom method to retrieve details of the authenticated head of sales.
-#     - delete(request): Custom method to delete a head of sales.
+#     - get_queryset(): Custom method to retrieve the queryset of team members.
 
 #     Returns:
-#     - Response: Result of the requested operation.
+#     - List of team members associated with the salesofficer's company.
 #     """
-#     authentication_classes = [JWTAuthentication]
+
+#     serializer_class = NewTeamMemberSerializer
 #     # permission_classes = [IsAuthenticated]
 #     permission_classes = [AllowAny]
 
-#     def post(self, request):
+#     def get_queryset(self):
 #         """
-#         Onboard a new head of sales.
-
-#         Args:
-#         - request: HTTP request object.
+#         Retrieve the queryset of team members associated with the salesofficer's company.
 
 #         Returns:
-#         - Response: Result of the onboard operation.
+#         - Queryset: List of team members associated with the salesofficer's company.
+
+#         Note:
+#         - Requires JWT authentication.
 #         """
 
-#         # Onboard head of sales
-#         result = onboard_head_of_sales(request.data, request.user)
-#         if not result["success"]:
-#             return Response(result["message"], status=result["status"])
-        
-#         # Onboard team member
-#         result = onboard_team_member(request.user, result["head_of_sales_instance"])
-#         if not result["success"]:
+#         sales_officer_instance = None
+#         if hasattr(self.request.user, "salesofficer"):
+#             sales_officer_instance = self.request.user.sales_officer
+
+#         if sales_officer_instance is None:
 #             return Response(
-#                 {"message": "Head of Sales onboarded successfully"}, status=status.HTTP_201_CREATED
+#                 {"message": "Salesofficer does not exist"},
+#                 status=status.HTTP_400_BAD_REQUEST,
 #             )
+#         user = self.request.user
+#         sales_officer = get_object_or_404(SalesOfficer, user=user)
+
+#         # Check if the recruiter is a team member
+#         team_memberships = TeamMember.objects.filter(member=sales_officer)
+
+#         if team_memberships.exists():
+#             # Get the company from the first team membership (assuming the salesofficer can belong to only one company)
+#             merchant = team_memberships.first().company
+
+#             # Get all team members for the salesofficer's company
+#             return TeamMember.objects.filter(company=merchant)
+
+
+# # class SalesOfficerView(APIView):
+# #     """
+# #     API endpoint for onboarding, retrieving, and deleting sales officers.
+
+# #     Requires JWT authentication.
+
+# #     Attributes:
+# #     - authentication_classes: List of authentication classes required for access.
+# #     - permission_classes: List of permission classes required for access.
+# #     - serializer_class: Serializer class for onboarded sales officer data.
+
+# #     Methods:
+# #     - post(request): Custom method to onboard a new sales officer.
+# #     - get(request): Custom method to retrieve details of the authenticated sales officer.
+# #     - delete(request): Custom method to delete a sales officer.
+
+# #     Returns:
+# #     - Response: Result of the requested operation.
+# #     """
+# #     authentication_classes = [JWTAuthentication]
+# #     # permission_classes = [IsAuthenticated]
+# #     permission_classes = [AllowAny]
+
+# #     def post(self, request):
+# #         """
+# #         Onboard a new sales officer.
+
+# #         Args:
+# #         - request: HTTP request object.
+
+# #         Returns:
+# #         - Response: Result of the onboard operation.
+# #         """
+
+# #         # Onboard sales officer
+# #         result = onboard_sales_officer(request.data, request.user)
+# #         if not result["success"]:
+# #             return Response(result["message"], status=result["status"])
+        
+# #         # Onboard team member
+# #         result = onboard_team_member(request.user, result["sales_officer_instance"])
+# #         if not result["success"]:
+# #             return Response(
+# #                 {"message": "Sales officer onboarded successfully"}, status=status.HTTP_201_CREATED
+# #             )
     
-#     def get(self, request):
-#         """
-#         Retrieve details of the authenticated head of sales.
+# #     def get(self, request):
+# #         """
+# #         Retrieve details of the authenticated sales officers.
 
-#         Args:
-#         - request: HTTP request object.
+# #         Args:
+# #         - request: HTTP request object.
 
-#         Returns:
-#         - Response: Details of the authenticated head of sales.
-#         """
+# #         Returns:
+# #         - Response: Details of the authenticated sales officer.
+# #         """
 
-#         id = request.user.id
-#         if id is None:
-#             return Response(
-#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-#             )
+# #         id = request.user.id
+# #         if id is None:
+# #             return Response(
+# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+# #             )
         
-#         try:
-#             head_of_sales = HeadOfSales.objects.get(user__id=id)
-#         except HeadOfSales.DoesNotExist:
-#             return Response(
-#                 {"message": f"The requested {head_of_sales} does not exist"}, status=status.HTTP_404_NOT_FOUND
-#             )
+# #         try:
+# #             sales_officer = SalesOfficer.objects.get(user__id=id)
+# #         except SalesOfficer.DoesNotExist:
+# #             return Response(
+# #                 {"message": f"The requested {sales_officer} does not exist"}, status=status.HTTP_404_NOT_FOUND
+# #             )
         
-#     def delete(self, request):
-#         """
-#         Delete a head of sales.
+# #     def delete(self, request):
+# #         """
+# #         Delete a sales officer.
 
-#         Args:
-#         - request: HTTP request object.
+# #         Args:
+# #         - request: HTTP request object.
 
-#         Returns:
-#         - Response: Result of the deletion operation
-#         """
+# #         Returns:
+# #         - Response: Result of the deletion operation
+# #         """
 
-#         id = request.GET.get("id", None)
-#         if id is None:
-#             return Response(
-#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-#             )
+# #         id = request.GET.get("id", None)
+# #         if id is None:
+# #             return Response(
+# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+# #             )
         
-#         try:
-#             head_of_sales = HeadOfSales.objects.get(id=id)
-#         except HeadOfSales.DoesNotExist:
-#             return Response(
-#                 {"message": "Head of Sales does not exist"}, status=status.HTTP_404_NOT_FOUND,
-#             )
+# #         try:
+# #             sales_officer = SalesOfficer.objects.get(id=id)
+# #         except SalesOfficer.DoesNotExist:
+# #             return Response(
+# #                 {"message": "Sales officer does not exist"}, status=status.HTTP_404_NOT_FOUND,
+# #             )
         
-#         head_of_sales.delete()
+# #         sales_officer.delete()
 
-#         return Response(
-#             data={"message": "Head of Sales deleted successfully"}, status=status.HTTP_200_OK
-#         )
+# #         return Response(
+# #             data={"message": "Sales officer deleted successfully"}, status=status.HTTP_200_OK
+# #         )
+
+
+# # class SalesLeadView(APIView):
+# #     """
+# #     API endpoint for onboarding, retrieving, and deleting sales leads.
+
+# #     Requires JWT authentication.
+
+# #     Attributes:
+# #     - authentication_classes: List of authentication classes required for access.
+# #     - permission_classes: List of permission classes required for access.
+# #     - serializer_class: Serializer class for onboarded sales lead data.
+
+# #     Methods:
+# #     - post(request): Custom method to onboard a new sales lead.
+# #     - get(request): Custom method to retrieve details of the authenticated sales lead.
+# #     - delete(request): Custom method to delete a sales lead.
+
+# #     Returns:
+# #     - Response: Result of the requested operation.
+# #     """
+# #     authentication_classes = [JWTAuthentication]
+# #     # permission_classes = [IsAuthenticated]
+# #     permission_classes = [AllowAny]
+
+# #     def post(self, request):
+# #         """
+# #         Onboard a new sales lead.
+
+# #         Args:
+# #         - request: HTTP request object.
+
+# #         Returns:
+# #         - Response: Result of the onboard operation.
+# #         """
+
+# #         # Onboard sales officer
+# #         result = onboard_sales_lead(request.data, request.user)
+# #         if not result["success"]:
+# #             return Response(result["message"], status=result["status"])
         
-
-# class SuperAdminView(APIView):
-#     """
-#     API endpoint for onboarding, retrieving, and deleting a super admin.
-
-#     Requires JWT authentication.
-
-#     Attributes:
-#     - authentication_classes: List of authentication classes required for access.
-#     - permission_classes: List of permission classes required for access.
-#     - serializer_class: Serializer class for onboarded super admin data.
-
-#     Methods:
-#     - post(request): Custom method to onboard a super admin.
-#     - get(request): Custom method to retrieve details of the authenticated super admin.
-#     - delete(request): Custom method to delete a super admin.
-
-#     Returns:
-#     - Response: Result of the requested operation.
-#     """
-#     authentication_classes = [JWTAuthentication]
-#     # permission_classes = [IsAuthenticated]
-#     permission_classes = [AllowAny]
-
-#     def post(self, request):
-#         """
-#         Onboard a new super admin.
-
-#         Args:
-#         - request: HTTP request object.
-
-#         Returns:
-#         - Response: Result of the onboarding operation.
-#         """
-
-#         # Onboard super admin
-#         result = onboard_super_admin(request.data, request.user)
-#         if not result["success"]:
-#             return Response(result["message"], status=result["status"])
-        
-#         # Onboard team member
-#         result = onboard_team_member(request.user, result["super_admin_instance"])
-#         if not result["success"]:
-#             return Response(
-#                 {"message": "Head of Sales onboarded successfully"}, status=status.HTTP_201_CREATED
-#             )
+# #         # Onboard team member
+# #         result = onboard_team_member(request.user, result["sales_lead_instance"])
+# #         if not result["success"]:
+# #             return Response(
+# #                 {"message": "Sales lead onboarded successfully"}, status=status.HTTP_201_CREATED
+# #             )
     
-#     def get(self, request):
-#         """
-#         Retrieve details of the authenticated super admin instance.
+# #     def get(self, request):
+# #         """
+# #         Retrieve details of the authenticated sales leads.
 
-#         Args:
-#         - request: HTTP request object.
+# #         Args:
+# #         - request: HTTP request object.
 
-#         Returns:
-#         - Response: Details of the authenticated super admin instance.
-#         """
+# #         Returns:
+# #         - Response: Details of the authenticated sales lead.
+# #         """
 
-#         id = request.user.id
-#         if id is None:
-#             return Response(
-#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-#             )
+# #         id = request.user.id
+# #         if id is None:
+# #             return Response(
+# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+# #             )
         
-#         try:
-#             super_admin = SuperAdmin.objects.get(user__id=id)
-#         except SuperAdmin.DoesNotExist:
-#             return Response(
-#                 {"message": f"The requested {super_admin} does not exist"}, status=status.HTTP_404_NOT_FOUND
-#             )
+# #         try:
+# #             sales_lead = SalesLead.objects.get(user__id=id)
+# #         except SalesLead.DoesNotExist:
+# #             return Response(
+# #                 {"message": f"The requested {sales_lead} does not exist"}, status=status.HTTP_404_NOT_FOUND
+# #             )
         
-#     def delete(self, request):
-#         """
-#         Delete a super admin.
+# #     def delete(self, request):
+# #         """
+# #         Delete a sales lead.
 
-#         Args:
-#         - request: HTTP request object.
+# #         Args:
+# #         - request: HTTP request object.
 
-#         Returns:
-#         - Response: Result of the deletion operation
-#         """
+# #         Returns:
+# #         - Response: Result of the deletion operation
+# #         """
 
-#         id = request.GET.get("id", None)
-#         if id is None:
-#             return Response(
-#                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-#             )
+# #         id = request.GET.get("id", None)
+# #         if id is None:
+# #             return Response(
+# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+# #             )
         
-#         try:
-#             super_admin = SuperAdmin.objects.get(id=id)
-#         except SuperAdmin.DoesNotExist:
-#             return Response(
-#                 {"message": "Head of Sales does not exist"}, status=status.HTTP_404_NOT_FOUND,
-#             )
+# #         try:
+# #             sales_lead = SalesLead.objects.get(id=id)
+# #         except SalesLead.DoesNotExist:
+# #             return Response(
+# #                 {"message": "Sales lead does not exist"}, status=status.HTTP_404_NOT_FOUND,
+# #             )
         
-#         super_admin.delete()
+# #         sales_lead.delete()
 
-#         return Response(
-#             data={"message": "Super admin deleted successfully"}, status=status.HTTP_200_OK
-#         )
+# #         return Response(
+# #             data={"message": "Sales lead deleted successfully"}, status=status.HTTP_200_OK
+# #         )
+    
+
+# # class HeadOfSalesView(APIView):
+# #     """
+# #     API endpoint for onboarding, retrieving, and deleting heads of sales.
+
+# #     Requires JWT authentication.
+
+# #     Attributes:
+# #     - authentication_classes: List of authentication classes required for access.
+# #     - permission_classes: List of permission classes required for access.
+# #     - serializer_class: Serializer class for onboarded heads of sales data.
+
+# #     Methods:
+# #     - post(request): Custom method to onboard a new head of sales.
+# #     - get(request): Custom method to retrieve details of the authenticated head of sales.
+# #     - delete(request): Custom method to delete a head of sales.
+
+# #     Returns:
+# #     - Response: Result of the requested operation.
+# #     """
+# #     authentication_classes = [JWTAuthentication]
+# #     # permission_classes = [IsAuthenticated]
+# #     permission_classes = [AllowAny]
+
+# #     def post(self, request):
+# #         """
+# #         Onboard a new head of sales.
+
+# #         Args:
+# #         - request: HTTP request object.
+
+# #         Returns:
+# #         - Response: Result of the onboard operation.
+# #         """
+
+# #         # Onboard head of sales
+# #         result = onboard_head_of_sales(request.data, request.user)
+# #         if not result["success"]:
+# #             return Response(result["message"], status=result["status"])
+        
+# #         # Onboard team member
+# #         result = onboard_team_member(request.user, result["head_of_sales_instance"])
+# #         if not result["success"]:
+# #             return Response(
+# #                 {"message": "Head of Sales onboarded successfully"}, status=status.HTTP_201_CREATED
+# #             )
+    
+# #     def get(self, request):
+# #         """
+# #         Retrieve details of the authenticated head of sales.
+
+# #         Args:
+# #         - request: HTTP request object.
+
+# #         Returns:
+# #         - Response: Details of the authenticated head of sales.
+# #         """
+
+# #         id = request.user.id
+# #         if id is None:
+# #             return Response(
+# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+# #             )
+        
+# #         try:
+# #             head_of_sales = HeadOfSales.objects.get(user__id=id)
+# #         except HeadOfSales.DoesNotExist:
+# #             return Response(
+# #                 {"message": f"The requested {head_of_sales} does not exist"}, status=status.HTTP_404_NOT_FOUND
+# #             )
+        
+# #     def delete(self, request):
+# #         """
+# #         Delete a head of sales.
+
+# #         Args:
+# #         - request: HTTP request object.
+
+# #         Returns:
+# #         - Response: Result of the deletion operation
+# #         """
+
+# #         id = request.GET.get("id", None)
+# #         if id is None:
+# #             return Response(
+# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+# #             )
+        
+# #         try:
+# #             head_of_sales = HeadOfSales.objects.get(id=id)
+# #         except HeadOfSales.DoesNotExist:
+# #             return Response(
+# #                 {"message": "Head of Sales does not exist"}, status=status.HTTP_404_NOT_FOUND,
+# #             )
+        
+# #         head_of_sales.delete()
+
+# #         return Response(
+# #             data={"message": "Head of Sales deleted successfully"}, status=status.HTTP_200_OK
+# #         )
+        
+
+# # class SuperAdminView(APIView):
+# #     """
+# #     API endpoint for onboarding, retrieving, and deleting a super admin.
+
+# #     Requires JWT authentication.
+
+# #     Attributes:
+# #     - authentication_classes: List of authentication classes required for access.
+# #     - permission_classes: List of permission classes required for access.
+# #     - serializer_class: Serializer class for onboarded super admin data.
+
+# #     Methods:
+# #     - post(request): Custom method to onboard a super admin.
+# #     - get(request): Custom method to retrieve details of the authenticated super admin.
+# #     - delete(request): Custom method to delete a super admin.
+
+# #     Returns:
+# #     - Response: Result of the requested operation.
+# #     """
+# #     authentication_classes = [JWTAuthentication]
+# #     # permission_classes = [IsAuthenticated]
+# #     permission_classes = [AllowAny]
+
+# #     def post(self, request):
+# #         """
+# #         Onboard a new super admin.
+
+# #         Args:
+# #         - request: HTTP request object.
+
+# #         Returns:
+# #         - Response: Result of the onboarding operation.
+# #         """
+
+# #         # Onboard super admin
+# #         result = onboard_super_admin(request.data, request.user)
+# #         if not result["success"]:
+# #             return Response(result["message"], status=result["status"])
+        
+# #         # Onboard team member
+# #         result = onboard_team_member(request.user, result["super_admin_instance"])
+# #         if not result["success"]:
+# #             return Response(
+# #                 {"message": "Head of Sales onboarded successfully"}, status=status.HTTP_201_CREATED
+# #             )
+    
+# #     def get(self, request):
+# #         """
+# #         Retrieve details of the authenticated super admin instance.
+
+# #         Args:
+# #         - request: HTTP request object.
+
+# #         Returns:
+# #         - Response: Details of the authenticated super admin instance.
+# #         """
+
+# #         id = request.user.id
+# #         if id is None:
+# #             return Response(
+# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+# #             )
+        
+# #         try:
+# #             super_admin = SuperAdmin.objects.get(user__id=id)
+# #         except SuperAdmin.DoesNotExist:
+# #             return Response(
+# #                 {"message": f"The requested {super_admin} does not exist"}, status=status.HTTP_404_NOT_FOUND
+# #             )
+        
+# #     def delete(self, request):
+# #         """
+# #         Delete a super admin.
+
+# #         Args:
+# #         - request: HTTP request object.
+
+# #         Returns:
+# #         - Response: Result of the deletion operation
+# #         """
+
+# #         id = request.GET.get("id", None)
+# #         if id is None:
+# #             return Response(
+# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+# #             )
+        
+# #         try:
+# #             super_admin = SuperAdmin.objects.get(id=id)
+# #         except SuperAdmin.DoesNotExist:
+# #             return Response(
+# #                 {"message": "Head of Sales does not exist"}, status=status.HTTP_404_NOT_FOUND,
+# #             )
+        
+# #         super_admin.delete()
+
+# #         return Response(
+# #             data={"message": "Super admin deleted successfully"}, status=status.HTTP_200_OK
+# #         )
     
     
 class DealView(APIView):
@@ -1203,9 +1102,12 @@ class DealView(APIView):
 
     authentication_classes = [JWTAuthentication]
     # permission_classes = [IsAuthenticated, CanManageDeal]
-    permission_classes = [AllowAny, CanManageDeal]
+    permission_classes = [
+        AllowAny, 
+        # CanManageDeal
+    ]
 
-    create_deal_serializer_class = CreateDealSerializer
+    # create_deal_serializer_class = CreateDealSerializer
     filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
     filterset_class = DealFilter
 
@@ -1290,20 +1192,20 @@ class DealView(APIView):
 
         # END check if the deal's start date is in present
 
-        list_of_team_members = []   
-        if (team_members != None) and (len(team_members) > 0):
-            for _team_member in team_members:
-                try:
-                    team_member = TeamMember.objects.get(
-                        id=_team_member, merchant=request.user.sales_officer.merchant
-                    )
-                    list_of_team_members.append(team_member)
-                except TeamMember.DoesNotExist:
-                    return Response(
-                        {"message": "Team member does not exist"}, status=status.HTTP_404_NOT_FOUND,
-                    )
+        # list_of_team_members = []   
+        # if (team_members != None) and (len(team_members) > 0):
+        #     for _team_member in team_members:
+        #         try:
+        #             team_member = TeamMember.objects.get(
+        #                 id=_team_member, merchant=request.user.sales_officer.merchant
+        #             )
+        #             list_of_team_members.append(team_member)
+        #         except TeamMember.DoesNotExist:
+        #             return Response(
+        #                 {"message": "Team member does not exist"}, status=status.HTTP_404_NOT_FOUND,
+        #             )
                 
-                print("NaMe----", name)
+        #         print("NaMe----", name)
 
                 # Create deal
                 deal = Deal.objects.create(
@@ -1322,8 +1224,8 @@ class DealView(APIView):
 
                 deal.update_deal_status()
 
-                if len(list_of_team_members) > 0:
-                    deal.team_member.set(list_of_team_members)
+                # if len(list_of_team_members) > 0:
+                #     deal.team_member.set(list_of_team_members)
 
     def get(self, request, unique_id):
         """
@@ -1406,18 +1308,18 @@ class DealView(APIView):
         pipeline_type = serializer.validated_data.get("pipeline_type")
         # deal_type = serializer.validated_data.get("deal_type")
 
-        list_of_team_members = []
-        if (team_members != None) and (len(team_members) > 0):
-            for _team_member in team_members:
-                try:
-                    team_member = TeamMember.objects.get(
-                        id=_team_member, merchant=request.user.sales_officer.merchant
-                    )
-                    list_of_team_members.append(team_member)
-                except TeamMember.DoesNotExist:
-                    return Response(
-                        {"message": "Team member does not exist"}, status=status.HTTP_404_NOT_FOUND
-                    )
+        # list_of_team_members = []
+        # if (team_members != None) and (len(team_members) > 0):
+        #     for _team_member in team_members:
+        #         try:
+        #             team_member = TeamMember.objects.get(
+        #                 id=_team_member, merchant=request.user.sales_officer.merchant
+        #             )
+        #             list_of_team_members.append(team_member)
+        #         except TeamMember.DoesNotExist:
+        #             return Response(
+        #                 {"message": "Team member does not exist"}, status=status.HTTP_404_NOT_FOUND
+        #             )
         
         # Update deal
         deal.deal_title = name
@@ -1427,8 +1329,8 @@ class DealView(APIView):
         deal.industry = industry
         deal.pipeline_type = pipeline_type
 
-        if len(list_of_team_members) > 0:
-            deal.team_member.set(list_of_team_members)
+        # if len(list_of_team_members) > 0:
+        #     deal.team_member.set(list_of_team_members)
 
         deal.save()
 
@@ -1480,156 +1382,159 @@ class DealView(APIView):
 
         deal.save()
 
-        team_members = request.data.get("team_member")
-        if team_members is not None:
-            list_of_team_members = []
-            for _team_member_id in team_members:
-                try:
-                    team_member = TeamMember.objects.get(
-                        id=_team_member_id, company=request.user.recruiter.company
-                    )
-                    list_of_team_members.append(team_member)
-                except TeamMember.DoesNotExist:
-                    return Response(
-                        {"message": f"Team member with ID {_team_member_id} does not exist"},
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
+        # team_members = request.data.get("team_member")
+        # if team_members is not None:
+        #     list_of_team_members = []
+        #     for _team_member_id in team_members:
+        #         try:
+        #             team_member = TeamMember.objects.get(
+        #                 id=_team_member_id, company=request.user.recruiter.company
+        #             )
+        #             list_of_team_members.append(team_member)
+        #         except TeamMember.DoesNotExist:
+        #             return Response(
+        #                 {"message": f"Team member with ID {_team_member_id} does not exist"},
+        #                 status=status.HTTP_404_NOT_FOUND,
+        #             )
 
-            deal.team_member.set(list_of_team_members)
+        #     deal.team_member.set(list_of_team_members)
 
         deal_serializer = DealSerializer(deal).data
 
         return Response(deal_serializer, status=status.HTTP_200_OK)
 
 
-class TrackDealView(APIView):
-    def post(self, request):
-        unique_id = request.data.get("unique_id")
-        if unique_id is None:
-            return Response({"message": "unique_id is required."}, 
-    )
+# class TrackDealView(APIView):
+#     def post(self, request):
+#         unique_id = request.data.get("unique_id")
+#         if unique_id is None:
+#             return Response({"message": "unique_id is required."}, 
+#     )
         
 
-class DealProgression(APIView):
-    """
-    API endpoint for managing deal progression within stages.
+# class DealProgression(APIView):
+#     """
+#     API endpoint for managing deal progression within stages.
 
-    Methods:
-    - post(request): Move deals to a specified stage within a deal's pipeline.
-    - delete(request): Remove deals from stages.
+#     Methods:
+#     - post(request): Move deals to a specified stage within a deal's pipeline.
+#     - delete(request): Remove deals from stages.
 
-    Returns:
-    - Response: Result of deal progression operations.
-    """
+#     Returns:
+#     - Response: Result of deal progression operations.
+#     """
 
-    def post(self, request):
-        """
-        Move deals to a specified stage within the pipeline.
+#     def post(self, request):
+#         """
+#         Move deals to a specified stage within the pipeline.
 
-        Args:
-        - request: HTTP request object containing deal_unique_id, stage_id, and task_ids.
+#         Args:
+#         - request: HTTP request object containing deal_unique_id, stage_id, and task_ids.
 
-        Returns:
-        - Response: Result of moving deals to the specified stage.
-        """
-        # Get the user instance associated with the request
-        user_instance = UserAccount.objects.get(email=request.user)
+#         Returns:
+#         - Response: Result of moving deals to the specified stage.
+#         """
+#         # Get the user instance associated with the request
+#         user_instance = UserAccount.objects.get(email=request.user)
 
-        deal_unique_id = request.data.get("deal_unique_id")
-        stage_id = request.data.get("stage_id")
-        dealprogression_unique_ids = request.data.get("dealprogression_unique_ids", [])
+#         deal_unique_id = request.data.get("deal_unique_id")
+#         stage_id = request.data.get("stage_id")
+#         dealprogression_unique_ids = request.data.get("dealprogression_unique_ids", [])
 
-        if not deal_unique_id:
-            return Response(
-                {"message": "Deal unique ID is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+#         if not deal_unique_id:
+#             return Response(
+#                 {"message": "Deal unique ID is required"},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
 
-        try:
-            deal = Deal.objects.get(unique_id=deal_unique_id)
-            pipeline = deal.pipeline
-            stage_instance = pipeline.stages.get(id=stage_id)
-        except Deal.DoesNotExist:
-            return Response(
-                {"message": "Invalid deal unique ID"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        except Stage.DoesNotExist:
-            return Response(
-                {"message": "Invalid stage ID"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+#         try:
+#             deal = Deal.objects.get(unique_id=deal_unique_id)
+#             pipeline = deal.pipeline
+#             stage_instance = pipeline.stages.get(id=stage_id)
+#         except Deal.DoesNotExist:
+#             return Response(
+#                 {"message": "Invalid deal unique ID"},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
+#         except Stage.DoesNotExist:
+#             return Response(
+#                 {"message": "Invalid stage ID"},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
 
-        for dealprogression_unique_id in dealprogression_unique_ids:
-            try:
-                deal = Deal.objects.get(id=dealprogression_unique_id)
-                old_stage_id = deal.deal_stage
-                deal.current_stage = stage_instance
-                # deal_progression.deal_stage = stage_instance.name
-                deal.save()
+#         for dealprogression_unique_id in dealprogression_unique_ids:
+#             try:
+#                 deal = Deal.objects.get(id=dealprogression_unique_id)
+#                 old_stage_id = deal.deal_stage
+#                 deal.current_stage = stage_instance
+#                 # deal_progression.deal_stage = stage_instance.name
+#                 deal.save()
 
-                # Retrieve the full name of the user
-                user_fullname = user_instance.get_fullname()
+#                 # Retrieve the full name of the user
+#                 user_fullname = user_instance.get_fullname()
 
-                # Update trail
-                trail_entry = {
-                    "event": "progression",
-                    "timestamp": timezone.now().isoformat(),
-                    "deal_name": deal.name,
-                    "stage_name": stage_instance.name,
-                    "moved_by": user_fullname
-                }
-                deal.trail.append(trail_entry)
-                deal.save()
+#                 # Update trail
+#                 trail_entry = {
+#                     "event": "progression",
+#                     "timestamp": timezone.now().isoformat(),
+#                     "deal_name": deal.name,
+#                     "stage_name": stage_instance.name,
+#                     "moved_by": user_fullname
+#                 }
+#                 deal.trail.append(trail_entry)
+#                 deal.save()
 
-                # Send email notification if enabled for the stage
-                if stage_instance.email_notification_enabled:
-                    stage_notification(stage_instance, deal)
+#                 # Send email notification if enabled for the stage
+#                 if stage_instance.email_notification_enabled:
+#                     stage_notification(stage_instance, deal)
 
-            except Deal.DoesNotExist:
-                continue
-        deal_count = Deal.deal_progression_count(unique_id=dealprogression_unique_id)
-        return Response(
-            {
-                "message": f"Your deal has been moved to {stage_instance.name} stage"
-            }
-        )
+#             except Deal.DoesNotExist:
+#                 continue
+#         deal_count = Deal.deal_progression_count(unique_id=dealprogression_unique_id)
+#         return Response(
+#             {
+#                 "message": f"Your deal has been moved to {stage_instance.name} stage"
+#             }
+#         )
 
-    def delete(self, request):
-        """
-        Remove deals from stages.
+#     def delete(self, request):
+#         """
+#         Remove deals from stages.
 
-        Args:
-        - request: HTTP request object containing deal_ids.
+#         Args:
+#         - request: HTTP request object containing deal_ids.
 
-        Returns:
-        - Response: Result of removing candidates from stages.
-        """
+#         Returns:
+#         - Response: Result of removing candidates from stages.
+#         """
 
-        deal_ids = request.data.get("deal_ids", [])
+#         deal_ids = request.data.get("deal_ids", [])
 
-        for deal_id in deal_ids:
-            try:
-                deal = Deal.objects.get(id=deal_id)
-                old_stage_id = deal.current_stage
-                deal.current_stage = None
-                deal.save()
+#         for deal_id in deal_ids:
+#             try:
+#                 deal = Deal.objects.get(id=deal_id)
+#                 old_stage_id = deal.current_stage
+#                 deal.current_stage = None
+#                 deal.save()
 
-                # Update counts for the stages
-                if old_stage_id:
-                    old_stage = Stage.objects.get(id=old_stage_id)
-                    old_stage.deal_count = F("deal_count") - 1
-                    old_stage.save()
+#                 # Update counts for the stages
+#                 if old_stage_id:
+#                     old_stage = Stage.objects.get(id=old_stage_id)
+#                     old_stage.deal_count = F("deal_count") - 1
+#                     old_stage.save()
 
-            except Deal.DoesNotExist:
-                continue
+#             except Deal.DoesNotExist:
+#                 continue
 
-        return Response({"message": "Deal removed from stages"})
+#         return Response({"message": "Deal removed from stages"})
 
 
-class ManagePipelineStagesAPIView(APIView):
+class StageView(APIView):
     # permission_classes = [IsAuthenticated, CanManageStage]
-    permission_classes = [AllowAny, CanManageStage]
+    permission_classes = [
+        AllowAny, 
+        # CanManageStage
+    ]
     
 
     def post(self, request, pipeline_id):
@@ -1756,9 +1661,12 @@ class ManagePipelineStagesAPIView(APIView):
             raise Http404(f"Stage with id {stage_id} does not exist.")
 
 
-class ManagePipelineView(APIView):
+class PipelineView(APIView):
     # permission_classes = [IsAuthenticated, CanManagePipeline]
-    permission_classes = [AllowAny, CanManagePipeline]
+    permission_classes = [
+        AllowAny, 
+        # CanManagePipeline
+    ]
 
     def get(self, request, pipeline_id):
         pipeline = get_object_or_404(Pipeline, id=pipeline_id)
@@ -1811,337 +1719,337 @@ class ManagePipelineView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# class SalesOfficerPipelinesAPIView(APIView):
+# # class SalesOfficerPipelinesAPIView(APIView):
+
+# #     def get(self, request):
+# #         sales_officer = get_object_or_404(SalesOfficer, user=request.user)
+# #         merchant = sales_officer.company
+# #         pipelines = Pipeline.objects.filter(
+# #             sales_officer=sales_officer, merchant=merchant, is_default=False
+# #         )
+
+# #         paginator = CustomPageNumberPagination()
+# #         result_page = paginator.paginate_queryset(pipelines, request)
+
+# #         serializer = PipelineSerializer(result_page, many=True)
+
+# #         return paginator.get_paginated_response(serializer.data)
+
+
+# class SalesOfficersPipelines(APIView):
+#     pagination_class = CustomPagination
 
 #     def get(self, request):
 #         sales_officer = get_object_or_404(SalesOfficer, user=request.user)
-#         merchant = sales_officer.company
+#         merchant = sales_officer.merchant
+
+#         # Filter pipelines where is_default is set to false
 #         pipelines = Pipeline.objects.filter(
 #             sales_officer=sales_officer, merchant=merchant, is_default=False
 #         )
 
+#         serializer = PipelineSerializer(pipelines, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# class CreateRolesAndPermissionsAPIView(APIView):
+#     def post(self, request):
+#         try:
+#             with transaction.atomic():
+#                 create_roles_and_permissions()
+#             return Response(
+#                 {"message": "Roles and permissions created successfully."},
+#                 status=status.HTTP_201_CREATED,
+#             )
+#         except Exception as e:
+#             return Response(
+#                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#             )
+
+# class ChangeDealStageView(APIView):
+#     def post(self, request, *args, **kwargs):
+#         serializer = ChangeDealStageSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+
+#         deal_id = serializer.validated_data.get("deal_id")
+#         stage_id = serializer.validated_data.get("stage_id")
+
+#         try:
+#             if deal_id:
+#                 deal = Deal.objects.get(id=deal_id)
+
+#         except deal.ObjectDoesNotExist:
+#             res = DataResponse(success=False, data=[], status_code=400, message="Deal Application does not exist")
+#             return res.respond()
+
+#         try:
+#             if stage_id:
+#                 stage = Stage.objects.get(id=stage_id)
+
+#         except stage.ObjectDoesNotExist:
+#             res = DataResponse(success=False, data=[], status_code=400, message="Pipeline Stage does not exist")
+#             return res.respond()
+
+#         deal.current_stage = stage
+#         return Response(
+#             {"message": f"Candidate successfully moved to the next stage"},
+#             status=status.HTTP_200_OK,
+#         )
+
+
+# class FetchCreatedDealsView(APIView):
+#     """
+#     API endpoint for fetching deals created by a sales officer or their team members.
+
+#     Attributes:
+#     - authentication_classes: List of authentication classes required for accessing the endpoint.
+#     - permission_classes: List of permission classes required for accessing the endpoint.
+
+#     Methods:
+#     - get(request): Retrieves deals created by the authenticated sales officer or their team members.
+
+#     Returns:
+#     - Response: Paginated list of deal data including total deal count.
+#     """
+
+#     authentication_classes = [JWTAuthentication]
+#     # permission_classes = [IsAuthenticated]
+#     permission_classes = [AllowAny]
+
+#     def get(self, request):
+#         """
+#         Retrieves deals created by the authenticated sales officer or their team members
+
+#         Args:
+#         - request: HTTP request object containing query parameters for filtering deals.
+
+#         Returns:
+#         - Response: Paginated list of deal data including total task & activity count for each deal.
+#         """
+
+#         sales_officer = SalesOfficer.objects.get(user=request.user)
+
+#         user = request.user
+#         sales_officer = get_object_or_404(SalesOfficer, user=user)
+
+#         # Check if the sales officer is a team member
+#         team_memberships = TeamMember.objects.filter(member=sales_officer)
+
+#         if team_memberships.exists():
+#             # Get the merchant from the first team membership (assuming the sales officer can belong to only one company)
+#             merchant = team_memberships.first().company
+
+#             # Get all team members for the sales officer's company 
+#             team_members = TeamMember.objects.filter(merchant=merchant)
+#             member_ids = team_members.values_list("member_id", flat=True)
+#         else:
+#             # If the sales officer is not part of any team, use only their own ID
+#             member_ids = [sales_officer.id]
+
+#         # Fetch all deals created by these team members or the sales officer
+#         deals = Deal.objects.filter(sales_officer_id__in=member_ids).order_by("-created_at")
+
+#         # Apply filters if provided in the query parameters
+#         search = request.GET.get("search", None)
+#         if search:
+#             deals = deals.filter(deal_title__icontains=search)
+
+#         unique_id = request.GET.get("unique_id", None)
+#         if unique_id:
+#             deals = deals.filter(unique_id=unique_id)
+        
+#         deal_title = request.GET.get("deal_title", None)
+#         if deal_title:
+#             deals = deals.filter(deal_title__icontains=deal_title)
+
+#         deal_status = request.GET.get("deal_status", None)
+#         if deal_status:
+#             deals = deals.filter(deal_status=deal_status)
+
+#         # Create a dictionary to map deal IDs to total deals count
+#         total_deals_map = {
+#             count["deal_id"]: count["total_deals"] for count in total_deals_map
+#         } 
+
+#         deals_data = []
+#         for deal in deals:
+#             deal_data = DealSerializer(deal).data
+#             deal_data["total_deals"] = total_deals_map.get(deal.id, 0)
+#             deals_data.append(deal_data)
+
 #         paginator = CustomPageNumberPagination()
-#         result_page = paginator.paginate_queryset(pipelines, request)
+#         result_page = paginator.paginate_queryset(deals_data, request)
 
-#         serializer = PipelineSerializer(result_page, many=True)
-
-#         return paginator.get_paginated_response(serializer.data)
-
-
-class SalesOfficersPipelines(APIView):
-    pagination_class = CustomPagination
-
-    def get(self, request):
-        sales_officer = get_object_or_404(SalesOfficer, user=request.user)
-        merchant = sales_officer.merchant
-
-        # Filter pipelines where is_default is set to false
-        pipelines = Pipeline.objects.filter(
-            sales_officer=sales_officer, merchant=merchant, is_default=False
-        )
-
-        serializer = PipelineSerializer(pipelines, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class CreateRolesAndPermissionsAPIView(APIView):
-    def post(self, request):
-        try:
-            with transaction.atomic():
-                create_roles_and_permissions()
-            return Response(
-                {"message": "Roles and permissions created successfully."},
-                status=status.HTTP_201_CREATED,
-            )
-        except Exception as e:
-            return Response(
-                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-class ChangeDealStageView(APIView):
-    def post(self, request, *args, **kwargs):
-        serializer = ChangeDealStageSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        deal_id = serializer.validated_data.get("deal_id")
-        stage_id = serializer.validated_data.get("stage_id")
-
-        try:
-            if deal_id:
-                deal = Deal.objects.get(id=deal_id)
-
-        except deal.ObjectDoesNotExist:
-            res = DataResponse(success=False, data=[], status_code=400, message="Deal Application does not exist")
-            return res.respond()
-
-        try:
-            if stage_id:
-                stage = Stage.objects.get(id=stage_id)
-
-        except stage.ObjectDoesNotExist:
-            res = DataResponse(success=False, data=[], status_code=400, message="Pipeline Stage does not exist")
-            return res.respond()
-
-        deal.current_stage = stage
-        return Response(
-            {"message": f"Candidate successfully moved to the next stage"},
-            status=status.HTTP_200_OK,
-        )
-
-
-class FetchCreatedDealsView(APIView):
-    """
-    API endpoint for fetching deals created by a sales officer or their team members.
-
-    Attributes:
-    - authentication_classes: List of authentication classes required for accessing the endpoint.
-    - permission_classes: List of permission classes required for accessing the endpoint.
-
-    Methods:
-    - get(request): Retrieves deals created by the authenticated sales officer or their team members.
-
-    Returns:
-    - Response: Paginated list of deal data including total deal count.
-    """
-
-    authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        """
-        Retrieves deals created by the authenticated sales officer or their team members
-
-        Args:
-        - request: HTTP request object containing query parameters for filtering deals.
-
-        Returns:
-        - Response: Paginated list of deal data including total task & activity count for each deal.
-        """
-
-        sales_officer = SalesOfficer.objects.get(user=request.user)
-
-        user = request.user
-        sales_officer = get_object_or_404(SalesOfficer, user=user)
-
-        # Check if the sales officer is a team member
-        team_memberships = TeamMember.objects.filter(member=sales_officer)
-
-        if team_memberships.exists():
-            # Get the merchant from the first team membership (assuming the sales officer can belong to only one company)
-            merchant = team_memberships.first().company
-
-            # Get all team members for the sales officer's company 
-            team_members = TeamMember.objects.filter(merchant=merchant)
-            member_ids = team_members.values_list("member_id", flat=True)
-        else:
-            # If the sales officer is not part of any team, use only their own ID
-            member_ids = [sales_officer.id]
-
-        # Fetch all deals created by these team members or the sales officer
-        deals = Deal.objects.filter(sales_officer_id__in=member_ids).order_by("-created_at")
-
-        # Apply filters if provided in the query parameters
-        search = request.GET.get("search", None)
-        if search:
-            deals = deals.filter(deal_title__icontains=search)
-
-        unique_id = request.GET.get("unique_id", None)
-        if unique_id:
-            deals = deals.filter(unique_id=unique_id)
-        
-        deal_title = request.GET.get("deal_title", None)
-        if deal_title:
-            deals = deals.filter(deal_title__icontains=deal_title)
-
-        deal_status = request.GET.get("deal_status", None)
-        if deal_status:
-            deals = deals.filter(deal_status=deal_status)
-
-        # Create a dictionary to map deal IDs to total deals count
-        total_deals_map = {
-            count["deal_id"]: count["total_deals"] for count in total_deals_map
-        } 
-
-        deals_data = []
-        for deal in deals:
-            deal_data = DealSerializer(deal).data
-            deal_data["total_deals"] = total_deals_map.get(deal.id, 0)
-            deals_data.append(deal_data)
-
-        paginator = CustomPageNumberPagination()
-        result_page = paginator.paginate_queryset(deals_data, request)
-
-        return paginator.get_paginated_response(result_page)
+#         return paginator.get_paginated_response(result_page)
     
 
-class FetchCreatedActivitiesView(APIView):
-    """
-    API endpoint for fetching activities created by a sales officer or their team members.
+# class FetchCreatedActivitiesView(APIView):
+#     """
+#     API endpoint for fetching activities created by a sales officer or their team members.
 
-    Attributes:
-    - authentication_classes: List of authentication classes required for accessing the endpoint.
-    - permission_classes: List of permission classes required for accessing the endpoint.
+#     Attributes:
+#     - authentication_classes: List of authentication classes required for accessing the endpoint.
+#     - permission_classes: List of permission classes required for accessing the endpoint.
 
-    Methods:
-    - get(request): Retrieves activities created by the authenticated sales officer or their team members.
+#     Methods:
+#     - get(request): Retrieves activities created by the authenticated sales officer or their team members.
 
-    Returns:
-    - Response: Paginated list of activity data including activity count.
-    """
+#     Returns:
+#     - Response: Paginated list of activity data including activity count.
+#     """
 
-    authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
+#     authentication_classes = [JWTAuthentication]
+#     # permission_classes = [IsAuthenticated]
+#     permission_classes = [AllowAny]
 
-    def get(self, request):
-        """
-        Retrieves activities created by the authenticated sales officer or their team members
+#     def get(self, request):
+#         """
+#         Retrieves activities created by the authenticated sales officer or their team members
 
-        Args:
-        - request: HTTP request object containing query parameters for filtering activities.
+#         Args:
+#         - request: HTTP request object containing query parameters for filtering activities.
 
-        Returns:
-        - Response: Paginated list of activity data including total activity count for each deal.
-        """
+#         Returns:
+#         - Response: Paginated list of activity data including total activity count for each deal.
+#         """
 
-        sales_officer = SalesOfficer.objects.get(user=request.user)
+#         sales_officer = SalesOfficer.objects.get(user=request.user)
 
-        user = request.user
-        sales_officer = get_object_or_404(SalesOfficer, user=user)
+#         user = request.user
+#         sales_officer = get_object_or_404(SalesOfficer, user=user)
 
-        # Check if the sales officer is a team member
-        team_memberships = TeamMember.objects.filter(member=sales_officer)
+#         # Check if the sales officer is a team member
+#         team_memberships = TeamMember.objects.filter(member=sales_officer)
 
-        if team_memberships.exists():
-            # Get the merchant from the first team membership (assuming the sales officer can belong to only one company)
-            merchant = team_memberships.first().company
+#         if team_memberships.exists():
+#             # Get the merchant from the first team membership (assuming the sales officer can belong to only one company)
+#             merchant = team_memberships.first().company
 
-            # Get all team members for the sales officer's company 
-            team_members = TeamMember.objects.filter(merchant=merchant)
-            member_ids = team_members.values_list("member_id", flat=True)
-        else:
-            # If the sales officer is not part of any team, use only their own ID
-            member_ids = [sales_officer.id]
+#             # Get all team members for the sales officer's company 
+#             team_members = TeamMember.objects.filter(merchant=merchant)
+#             member_ids = team_members.values_list("member_id", flat=True)
+#         else:
+#             # If the sales officer is not part of any team, use only their own ID
+#             member_ids = [sales_officer.id]
 
-        # Fetch all activities created by these team members or the sales officer
-        activities = Activity.objects.filter(sales_officer_id__in=member_ids).order_by("-created_at")
+#         # Fetch all activities created by these team members or the sales officer
+#         activities = Activity.objects.filter(sales_officer_id__in=member_ids).order_by("-created_at")
 
-        # Apply filters if provided in the query parameters
-        search = request.GET.get("search", None)
-        if search:
-            activities = activities.filter(deal_title__icontains=search)
+#         # Apply filters if provided in the query parameters
+#         search = request.GET.get("search", None)
+#         if search:
+#             activities = activities.filter(deal_title__icontains=search)
 
-        unique_id = request.GET.get("unique_id", None)
-        if unique_id:
-            activities = activities.filter(unique_id=unique_id)
+#         unique_id = request.GET.get("unique_id", None)
+#         if unique_id:
+#             activities = activities.filter(unique_id=unique_id)
         
-        activity_title = request.GET.get("activity_title", None)
-        if activity_title:
-            activities = activities.filter(deal_title__icontains=activity_title)
+#         activity_title = request.GET.get("activity_title", None)
+#         if activity_title:
+#             activities = activities.filter(deal_title__icontains=activity_title)
 
-        # deal_status = request.GET.get("deal_status", None)
-        # if deal_status:
-        #     deals = deals.filter(deal_status=deal_status)
+#         # deal_status = request.GET.get("deal_status", None)
+#         # if deal_status:
+#         #     deals = deals.filter(deal_status=deal_status)
 
-        # Create a dictionary to map deal IDs to total deals count
-        total_activities_map = {
-            count["activity_id"]: count["total_activities"] for count in total_activities_map
-        } 
+#         # Create a dictionary to map deal IDs to total deals count
+#         total_activities_map = {
+#             count["activity_id"]: count["total_activities"] for count in total_activities_map
+#         } 
 
-        activities_data = []
-        for activity in activities:
-            activity_data = ActivitySerializer(activity).data
-            activity_data["total_activities"] = total_activities_map.get(activity.id, 0)
-            activities_data.append(activity_data)
+#         activities_data = []
+#         for activity in activities:
+#             activity_data = ActivitySerializer(activity).data
+#             activity_data["total_activities"] = total_activities_map.get(activity.id, 0)
+#             activities_data.append(activity_data)
 
-        paginator = CustomPageNumberPagination()
-        result_page = paginator.paginate_queryset(activities_data, request)
+#         paginator = CustomPageNumberPagination()
+#         result_page = paginator.paginate_queryset(activities_data, request)
 
-        return paginator.get_paginated_response(result_page)
+#         return paginator.get_paginated_response(result_page)
     
 
-class FetchCreatedTasksView(APIView):
-    """
-    API endpoint for fetching tasks created by a sales officer or their team members.
+# class FetchCreatedTasksView(APIView):
+#     """
+#     API endpoint for fetching tasks created by a sales officer or their team members.
 
-    Attributes:
-    - authentication_classes: List of authentication classes required for accessing the endpoint.
-    - permission_classes: List of permission classes required for accessing the endpoint.
+#     Attributes:
+#     - authentication_classes: List of authentication classes required for accessing the endpoint.
+#     - permission_classes: List of permission classes required for accessing the endpoint.
 
-    Methods:
-    - get(request): Retrieves tasks created by the authenticated sales officer or their team members.
+#     Methods:
+#     - get(request): Retrieves tasks created by the authenticated sales officer or their team members.
 
-    Returns:
-    - Response: Paginated list of task data.
-    """
+#     Returns:
+#     - Response: Paginated list of task data.
+#     """
 
-    authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [AllowAny]
+#     authentication_classes = [JWTAuthentication]
+#     # permission_classes = [IsAuthenticated]
+#     permission_classes = [AllowAny]
 
-    def get(self, request):
-        """
-        Retrieves tasks created by the authenticated sales officer or their team members
+#     def get(self, request):
+#         """
+#         Retrieves tasks created by the authenticated sales officer or their team members
 
-        Args:
-        - request: HTTP request object containing query parameters for filtering tasks.
+#         Args:
+#         - request: HTTP request object containing query parameters for filtering tasks.
 
-        Returns:
-        - Response: Paginated list of task data including total task count for each deal.
-        """
+#         Returns:
+#         - Response: Paginated list of task data including total task count for each deal.
+#         """
 
-        sales_officer = SalesOfficer.objects.get(user=request.user)
+#         sales_officer = SalesOfficer.objects.get(user=request.user)
 
-        user = request.user
-        sales_officer = get_object_or_404(SalesOfficer, user=user)
+#         user = request.user
+#         sales_officer = get_object_or_404(SalesOfficer, user=user)
 
-        # Check if the sales officer is a team member
-        team_memberships = TeamMember.objects.filter(member=sales_officer)
+#         # Check if the sales officer is a team member
+#         team_memberships = TeamMember.objects.filter(member=sales_officer)
 
-        if team_memberships.exists():
-            # Get the merchant from the first team membership (assuming the sales officer can belong to only one company)
-            merchant = team_memberships.first().company
+#         if team_memberships.exists():
+#             # Get the merchant from the first team membership (assuming the sales officer can belong to only one company)
+#             merchant = team_memberships.first().company
 
-            # Get all team members for the sales officer's company 
-            team_members = TeamMember.objects.filter(merchant=merchant)
-            member_ids = team_members.values_list("member_id", flat=True)
-        else:
-            # If the sales officer is not part of any team, use only their own ID
-            member_ids = [sales_officer.id]
+#             # Get all team members for the sales officer's company 
+#             team_members = TeamMember.objects.filter(merchant=merchant)
+#             member_ids = team_members.values_list("member_id", flat=True)
+#         else:
+#             # If the sales officer is not part of any team, use only their own ID
+#             member_ids = [sales_officer.id]
 
-        # Fetch all tasks created by these team members or the sales officer
-        tasks = Task.objects.filter(sales_officer_id__in=member_ids).order_by("-created_at")
+#         # Fetch all tasks created by these team members or the sales officer
+#         tasks = Task.objects.filter(sales_officer_id__in=member_ids).order_by("-created_at")
 
-        # Apply filters if provided in the query parameters
-        search = request.GET.get("search", None)
-        if search:
-            tasks = tasks.filter(deal_title__icontains=search)
+#         # Apply filters if provided in the query parameters
+#         search = request.GET.get("search", None)
+#         if search:
+#             tasks = tasks.filter(deal_title__icontains=search)
 
-        unique_id = request.GET.get("unique_id", None)
-        if unique_id:
-            tasks = tasks.filter(unique_id=unique_id)
+#         unique_id = request.GET.get("unique_id", None)
+#         if unique_id:
+#             tasks = tasks.filter(unique_id=unique_id)
         
-        task_title = request.GET.get("deal_title", None)
-        if task_title:
-            tasks = tasks.filter(task_title__icontains=task_title)
+#         task_title = request.GET.get("deal_title", None)
+#         if task_title:
+#             tasks = tasks.filter(task_title__icontains=task_title)
 
-        # deal_status = request.GET.get("deal_status", None)
-        # if deal_status:
-        #     deals = deals.filter(deal_status=deal_status)
+#         # deal_status = request.GET.get("deal_status", None)
+#         # if deal_status:
+#         #     deals = deals.filter(deal_status=deal_status)
 
-        # Create a dictionary to map deal IDs to total deals count
-        total_tasks_map = {
-            count["task_id"]: count["total_tasks"] for count in total_tasks_map
-        } 
+#         # Create a dictionary to map deal IDs to total deals count
+#         total_tasks_map = {
+#             count["task_id"]: count["total_tasks"] for count in total_tasks_map
+#         } 
 
-        tasks_data = []
-        for task in tasks:
-            task_data = TaskSerializer(task).data
-            task_data["total_tasks"] = total_tasks_map.get(task.id, 0)
-            tasks_data.append(task_data)
+#         tasks_data = []
+#         for task in tasks:
+#             task_data = TaskSerializer(task).data
+#             task_data["total_tasks"] = total_tasks_map.get(task.id, 0)
+#             tasks_data.append(task_data)
 
-        paginator = CustomPageNumberPagination()
-        result_page = paginator.paginate_queryset(tasks_data, request)
+#         paginator = CustomPageNumberPagination()
+#         result_page = paginator.paginate_queryset(tasks_data, request)
 
-        return paginator.get_paginated_response(result_page)
+#         return paginator.get_paginated_response(result_page)

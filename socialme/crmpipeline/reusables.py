@@ -4,16 +4,16 @@ from rest_framework import status
 import django_filters
 from crmpipeline.models import Deal, TeamMemberRole 
 # from crmpipeline.serializers import OnboardSalesOfficerSerializer
-from users.serializers import (
+from simplejwtauth.serializers import (
     OnboardSuperAdminSerializer, OnboardHeadOfSalesSerializer,  
     OnboardSalesLeadSerializer, OnboardSalesOfficerSerializer, 
     SuperAdminSerializer, HeadOfSalesSerializer, SalesLeadSerializer, 
     SalesOfficerSerializer,
 )
-from users.models import (
+from simplejwtauth.models import (
     Company, HeadOfSales, 
     SuperAdmin, SalesLead, 
-    SalesOfficer, TeamMember 
+    SalesOfficer, # TeamMember 
 )
 
 
@@ -293,20 +293,20 @@ def onboard_sales_officer(data, user):
     user.save()
 
 
-def onboard_team_member(user, sales_officer_instance):
-    merchant = sales_officer_instance.company
+# def onboard_team_member(user, sales_officer_instance):
+#     merchant = sales_officer_instance.company
 
-    if not TeamMember.objects.filter(merchant=merchant).exists():
-        role_name = "ADMIN"
-    else:
-        role_name = "MEMBER"
+#     if not TeamMember.objects.filter(merchant=merchant).exists():
+#         role_name = "ADMIN"
+#     else:
+#         role_name = "MEMBER"
 
-    TeamMember.create_record(
-        member=sales_officer_instance,
-        role=TeamMemberRole.objects.get_or_create(name="ADMIN")[0],
-        merchant=merchant,
-    )
+#     TeamMember.create_record(
+#         member=sales_officer_instance,
+#         role=TeamMemberRole.objects.get_or_create(name="ADMIN")[0],
+#         merchant=merchant,
+#     )
 
-    return {
-        "success": True
-    }
+#     return {
+#         "success": True
+#     }
