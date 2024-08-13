@@ -50,7 +50,7 @@ class Company(models.Model):
 
         company = cls.objects.create(
             user=validated_data.get("id"),
-            company_name=validated_data.get("company_name").title(),
+            company_name=validated_data.get("company_name"),
             industry=validated_data.get("industry"),
             is_active=True,
         ) 

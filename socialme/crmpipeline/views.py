@@ -212,6 +212,532 @@ class TrackDealView(APIView):
         return Response({'message': 'Viewer count updated successfully'}, status=status.HTTP_200_OK)
 
 
+    
+    
+class DealView(APIView):
+    """
+    API endpoint for CRUD operations related to deals.
+
+    Attributes:
+    - authentication_classes: List of authentication classes required for access.
+    - permission_classes: List of permission classes required for access.
+    - create_deal_serializer_class: Serializer class for creating a deal.
+    - filter_backends: List of filter backends for deal listing.
+    - filterset_class: Filterset class for deal filtering.
+
+    Methods:
+    - post(request): Create a new deal.
+    - get(request): Retrieve a deal by ID.
+    - delete(request): Delete a deal by ID.
+    - put(request): Update a deal by ID.
+    - patch(request): Partially update a deal by ID.
+
+    Returns:
+    - Response: Result of the CRUD operations on deals.
+    """
+
+    authentication_classes = [JWTAuthentication]
+    # permission_classes = [IsAuthenticated, CanManageDeal]
+    permission_classes = [
+        AllowAny, 
+        # CanManageDeal
+    ]
+
+    # create_deal_serializer_class = CreateDealSerializer
+    filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
+    filterset_class = DealFilter
+
+    def post(self, request):
+        """
+        Create a new deal.
+
+        Args:
+        - request: HTTP request object.
+
+        Returns:
+        - Response: Result of the deal creation operation.
+        """
+        serializer = self.create_deal_serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        print("serializer.validated_data---", serializer.validated_data)
+
+        print("Nameeeee -----------", serializer.validated_data.get("name"))
+
+        name = request.data.get("name", deal.deal_title)
+        description = serializer.validated_data.get("description")
+        deal_status = serializer.validated_data.get("deal_status", "DRAFT")
+        team_members = serializer.validated_data.get("team_member")
+        merchant_overview = serializer.validated_data.get("merchant_overview")
+        industry = serializer.validated_data.get("industry")
+        pipeline_type = serializer.validated_data.get("pipeline_type")
+        deal_type = serializer.validate_data.get("deal_type")
+
+        if pipeline_type == "DEFAULT":
+            # Create a default pipeline with default stages
+            try:
+                with transaction.atomic():
+                    sales_officer = SalesOfficer.objects.get(user=self.request.user)
+                    merchant = sales_officer.merchant
+                    default_stage_names = [
+                        "Qualified",
+                        "Demo scheduled",
+                        "Proposal made",
+                        "Invoice",
+                    ]
+                    pipeline = Pipeline.objects.create(
+                        name = "Default Pipeline", sales_officer=sales_officer, merchant=merchant
+                    )
+                    default_stages = []
+                    for index, name in enumerate(default_stage_names):
+                        stage_kwargs = {"name": name, "order": index}
+                        if name == "New deal":
+                            stage_kwargs["is_new_deal"] = True
+                        default_stages.append(Stage.objects.create(**stage_kwargs))
+
+                    pipeline.stages.add(*default_stages)
+            except Exception as e:
+                return Response(
+                    {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+        
+        else:
+            pipeline = serializer.validated_data.get("pipeline")
+
+        serializer.validated_data["pipeline"] = pipeline
+
+        if deal_deadline != None:
+            deal_deadline = deal_deadline.date()
+
+        if deal_start_date != None:
+            deal_start_date = deal_start_date.date()
+
+         # check if the application start date is in the feature
+        if deal_deadline != None and deal_start_date != None:
+            if deal_start_date > deal_deadline:
+                return Response(
+                    {
+                        "message": "Deal start date cannot be greater than deal deadline"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        if deal_start_date != None:
+            if deal_start_date > datetime.date(datetime.now()):
+                deal_status = "QUEUED"
+
+        # END check if the deal's start date is in present
+
+        # list_of_team_members = []   
+        # if (team_members != None) and (len(team_members) > 0):
+        #     for _team_member in team_members:
+        #         try:
+        #             team_member = TeamMember.objects.get(
+        #                 id=_team_member, merchant=request.user.sales_officer.merchant
+        #             )
+        #             list_of_team_members.append(team_member)
+        #         except TeamMember.DoesNotExist:
+        #             return Response(
+        #                 {"message": "Team member does not exist"}, status=status.HTTP_404_NOT_FOUND,
+        #             )
+                
+        #         print("NaMe----", name)
+
+                # Create deal
+                deal = Deal.objects.create(
+                    deal_title=serializer.validated_data.get("name"),
+                    description=description,
+                    sales_officer=sales_officer,
+                    deal_type=deal_type,
+                    deal_status=deal_status, 
+                    merchant_overview=merchant_overview,
+                    industry=industry,
+                    pipeline_type=pipeline_type,
+                    pipeline=pipeline,
+                )
+
+                print("deal--", deal)
+
+                deal.update_deal_status()
+
+                # if len(list_of_team_members) > 0:
+                #     deal.team_member.set(list_of_team_members)
+
+    def get(self, request, unique_id):
+        """
+        Retrieve a deal by it's unique_id.
+
+        Args:
+        - request: HTTP request object.
+
+        Returns:
+        - Response: Result of retrieving the deal by it's unique_id.
+        """
+        try:
+            deal = Deal.objects.get(unique_id=unique_id)
+        except Deal.DoesNotExist:
+            raise Http404("Deal does not exist")
+        
+        serializer = DealSerializer(deal)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def delete(self, request):
+        """
+        Delete deal by ID.
+
+        Args:
+        - request: HTTP request object.
+
+        Returns:
+        - Response: Result of deleting the deal by it's ID.
+        """
+
+        id = request.GET.get("id", None)
+        if id is None:
+            return Response(
+                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            deal = Deal.objects.get(id=id)
+        except Deal.DoesNotExist:
+            return Response(
+                {"message": "Deal does not exist"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        deal.delete()
+
+        return Response(
+            data={"message": "Deal deleted successfully"}, status=status.HTTP_200_OK
+        )
+        
+    def put(self, request):
+        """
+        Update a deal by ID.
+
+        Args:
+        - Response: Result of updating the job by ID.
+        """
+
+        id = request.GET.get("id", None)
+        if id is None:
+            return Response(
+                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            deal = Deal.objects.get(id=id)
+        except Deal.DoesNotExist:
+            return Response(
+                {"message": "Deal does not exist"}, status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = self.create_deal_serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        name = request.data.get("name", deal.deal_title)
+        description = serializer.validated_data.get("description")
+        deal_status = serializer.validated_data.get("deal_status", "DRAFT")
+        team_members = serializer.validated_data.get("team_member")
+        merchant_overview = serializer.validated_data.get("merchant_overview")
+        industry = serializer.validated_data.get("industry")
+        pipeline_type = serializer.validated_data.get("pipeline_type")
+        # deal_type = serializer.validated_data.get("deal_type")
+
+        # list_of_team_members = []
+        # if (team_members != None) and (len(team_members) > 0):
+        #     for _team_member in team_members:
+        #         try:
+        #             team_member = TeamMember.objects.get(
+        #                 id=_team_member, merchant=request.user.sales_officer.merchant
+        #             )
+        #             list_of_team_members.append(team_member)
+        #         except TeamMember.DoesNotExist:
+        #             return Response(
+        #                 {"message": "Team member does not exist"}, status=status.HTTP_404_NOT_FOUND
+        #             )
+        
+        # Update deal
+        deal.deal_title = name
+        deal.description = description
+        deal.deal_status = deal_status
+        deal.merchant_overview = merchant_overview
+        deal.industry = industry
+        deal.pipeline_type = pipeline_type
+
+        # if len(list_of_team_members) > 0:
+        #     deal.team_member.set(list_of_team_members)
+
+        deal.save()
+
+        deal_serializer = DealSerializer(deal).data
+
+        return Response(deal_serializer, status=status.HTTP_201_CREATED)
+
+    def patch(self, request):
+        """
+        Partially update a deal by ID.
+
+        Args:
+        - request: HTTP request object.
+
+        Returns:
+        - Response: Result of partially updating the deal by ID.
+        """
+
+        id = request.GET.get("id", None)
+        if id is None:
+            return Response(
+                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            deal = deal.objects.get(id=id)
+        except deal.DoesNotExist:
+            return Response(
+                {"message": "Deal does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        name = request.data.get("name", deal.deal_title)
+        description = request.data.get("description")
+        deal_status = request.data.get("deal_status", "DRAFT")
+        team_members = request.data.get("team_member")
+        merchant_overview = request.data.get("merchant_overview")
+        industry = request.data.get("industry")
+        pipeline_type = request.data.get("pipeline_type")
+
+        # Update deal
+        deal.deal_title = name
+        deal.description = description
+        deal.deal_status = deal_status
+        deal.merchant_overview = merchant_overview
+        deal.industry = industry
+        deal.team_members = team_members
+        deal.pipeline_type = pipeline_type
+
+        deal.save()
+
+        # team_members = request.data.get("team_member")
+        # if team_members is not None:
+        #     list_of_team_members = []
+        #     for _team_member_id in team_members:
+        #         try:
+        #             team_member = TeamMember.objects.get(
+        #                 id=_team_member_id, company=request.user.recruiter.company
+        #             )
+        #             list_of_team_members.append(team_member)
+        #         except TeamMember.DoesNotExist:
+        #             return Response(
+        #                 {"message": f"Team member with ID {_team_member_id} does not exist"},
+        #                 status=status.HTTP_404_NOT_FOUND,
+        #             )
+
+        #     deal.team_member.set(list_of_team_members)
+
+        deal_serializer = DealSerializer(deal).data
+
+        return Response(deal_serializer, status=status.HTTP_200_OK)
+
+
+# class TrackDealView(APIView):
+#     def post(self, request):
+#         unique_id = request.data.get("unique_id")
+#         if unique_id is None:
+#             return Response({"message": "unique_id is required."}, 
+#     )
+        
+
+class StageView(APIView):
+    # permission_classes = [IsAuthenticated, CanManageStage]
+    permission_classes = [
+        AllowAny, 
+        # CanManageStage
+    ]
+    
+
+    def post(self, request, pipeline_id):
+        # Get the pipeline instance
+        pipeline = get_object_or_404(Pipeline, id=pipeline_id)
+
+        # Create a list to store newly created stages
+        created_stages = []
+
+        # Get the current maximum order of stages in the pipeline
+        max_order = pipeline.stages.aggregate(max_order=Max("order"))["max_order"]
+        if max_order is None:
+            max_order = 0
+
+        # Check if request data is a list of stages
+        if isinstance(request.data, list):
+            for stage_data in request.data:
+                # Increment the order by 1
+                max_order += 1
+
+                # Add "order" field to each stage_data
+                stage_data["order"] = max_order
+
+                # Create a serializer instance for each stage data
+                serializer = StageSerializer(data=stage_data)
+                if serializer.is_valid():
+                    # Save the stage and add it to the pipeline's stages
+                    stage = serializer.save()
+                    pipeline.stages.add(stage)
+                    created_stages.append(stage)
+                else:
+                    # If any stage data is invalid, return error response
+                    return Response(
+                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Save the pipeline to persist changes
+            pipeline.save()
+
+            # Serialize the created stages and return success response
+            created_stages_serializer = StageSerializer(created_stages, many=True)
+            return Response(
+                created_stages_serializer.data, status=status.HTTP_201_CREATED
+            )
+        else:
+            # If request data is not a list, return error response
+            return Response(
+                {"error": "Request data should be a list of stages."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    def put(self, request, pipeline_id):
+        new_order = request.data.get("new_order", [])
+        if new_order:
+            try:
+                # Get the pipeline instance
+                pipeline = get_object_or_404(Pipeline, id=pipeline_id)
+
+                # Retrieve stages based on the provided order
+                stage_ids = [int(id) for id in new_order]
+                stages = Stage.objects.filter(id__in=stage_ids, pipeline=pipeline)
+
+                if len(stages) != len(stage_ids):
+                    return Response(
+                        {"error": "One or more stages do not belong to this pipeline."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # Update the order of stages based on the provided order
+                for index, stage_id in enumerate(stage_ids):
+                    stage = stages.get(id=stage_id)
+                    stage.order = (
+                        index
+                    )
+                    stage.save()
+
+                # Serialize the updated pipeline
+                pipeline_serializer = PipelineSerializer(pipeline)
+
+                return Response(
+                    {
+                        "message": "Stages reordered successfully.",
+                        "deal_pipeline": pipeline_serializer.data,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            except Pipeline.DoesNotExist:
+                return Response(
+                    {"error": "Pipeline does not exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            except Stage.DoesNotExist:
+                return Response(
+                    {"error": "One or more stages do not exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
+            return Response(
+                {"error": "New order of stages not provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    def patch(self, request, stage_id, **kwargs):
+        try:
+            stage = Stage.objects.get(id=stage_id)
+        except Stage.DoesNotExist:
+            raise NotFound(f"Stage with id {stage_id} does not exist.")
+
+        serializer = StageSerializer(instance=stage, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, stage_id, **kwargs):
+        try:
+            stage = Stage.objects.get(id=stage_id)
+            stage.delete()
+            return Response(
+                {"message": "Stage deleted successfully."},
+                status=status.HTTP_204_NO_CONTENT,
+            )
+        except Stage.DoesNotExist:
+            raise Http404(f"Stage with id {stage_id} does not exist.")
+
+
+class PipelineView(APIView):
+    # permission_classes = [IsAuthenticated, CanManagePipeline]
+    permission_classes = [
+        AllowAny, 
+        # CanManagePipeline
+    ]
+
+    def get(self, request, pipeline_id):
+        pipeline = get_object_or_404(Pipeline, id=pipeline_id)
+
+        serializer = PipelineSerializer(pipeline)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = PipelineSerializer(data=request.data)
+        if serializer.is_valid():
+            sales_officer = SalesOfficer.objects.get(user=self.request.user)
+            serializer.validated_data["sales_officer"] = sales_officer
+            serializer.validated_data["company"] = sales_officer.merchant
+
+            if not serializer.validated_data.get("is_default"):
+                # If it's a custom pipeline, ensure "New candidate" stage is added
+                with transaction.atomic():
+                    new_pipeline = serializer.save()
+                    new_merchant_stage = Stage.objects.create(
+                        name="New candidate", order=0, is_new_candidate=True
+                    )
+                    new_pipeline.stages.add(new_merchant_stage)
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, pipeline_id):
+        try:
+            pipeline = Pipeline.objects.get(id=pipeline_id)
+        except Pipeline.DoesNotExist:
+            return Response(
+                {"error": "Pipeline not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = PipelineSerializer(pipeline, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pipeline_id):
+        try:
+            pipeline = Pipeline.objects.get(id=pipeline_id)
+        except Pipeline.DoesNotExist:
+            return Response(
+                {"error": "Pipeline not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        pipeline.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 # class AddTeamMemberView(CreateAPIView):
 #     """
 #     API endpoint for adding team members to manage a merchant.
@@ -672,744 +1198,6 @@ class TrackDealView(APIView):
 
 #             # Get all team members for the salesofficer's company
 #             return TeamMember.objects.filter(company=merchant)
-
-
-# # class SalesOfficerView(APIView):
-# #     """
-# #     API endpoint for onboarding, retrieving, and deleting sales officers.
-
-# #     Requires JWT authentication.
-
-# #     Attributes:
-# #     - authentication_classes: List of authentication classes required for access.
-# #     - permission_classes: List of permission classes required for access.
-# #     - serializer_class: Serializer class for onboarded sales officer data.
-
-# #     Methods:
-# #     - post(request): Custom method to onboard a new sales officer.
-# #     - get(request): Custom method to retrieve details of the authenticated sales officer.
-# #     - delete(request): Custom method to delete a sales officer.
-
-# #     Returns:
-# #     - Response: Result of the requested operation.
-# #     """
-# #     authentication_classes = [JWTAuthentication]
-# #     # permission_classes = [IsAuthenticated]
-# #     permission_classes = [AllowAny]
-
-# #     def post(self, request):
-# #         """
-# #         Onboard a new sales officer.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Result of the onboard operation.
-# #         """
-
-# #         # Onboard sales officer
-# #         result = onboard_sales_officer(request.data, request.user)
-# #         if not result["success"]:
-# #             return Response(result["message"], status=result["status"])
-        
-# #         # Onboard team member
-# #         result = onboard_team_member(request.user, result["sales_officer_instance"])
-# #         if not result["success"]:
-# #             return Response(
-# #                 {"message": "Sales officer onboarded successfully"}, status=status.HTTP_201_CREATED
-# #             )
-    
-# #     def get(self, request):
-# #         """
-# #         Retrieve details of the authenticated sales officers.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Details of the authenticated sales officer.
-# #         """
-
-# #         id = request.user.id
-# #         if id is None:
-# #             return Response(
-# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-# #             )
-        
-# #         try:
-# #             sales_officer = SalesOfficer.objects.get(user__id=id)
-# #         except SalesOfficer.DoesNotExist:
-# #             return Response(
-# #                 {"message": f"The requested {sales_officer} does not exist"}, status=status.HTTP_404_NOT_FOUND
-# #             )
-        
-# #     def delete(self, request):
-# #         """
-# #         Delete a sales officer.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Result of the deletion operation
-# #         """
-
-# #         id = request.GET.get("id", None)
-# #         if id is None:
-# #             return Response(
-# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-# #             )
-        
-# #         try:
-# #             sales_officer = SalesOfficer.objects.get(id=id)
-# #         except SalesOfficer.DoesNotExist:
-# #             return Response(
-# #                 {"message": "Sales officer does not exist"}, status=status.HTTP_404_NOT_FOUND,
-# #             )
-        
-# #         sales_officer.delete()
-
-# #         return Response(
-# #             data={"message": "Sales officer deleted successfully"}, status=status.HTTP_200_OK
-# #         )
-
-
-# # class SalesLeadView(APIView):
-# #     """
-# #     API endpoint for onboarding, retrieving, and deleting sales leads.
-
-# #     Requires JWT authentication.
-
-# #     Attributes:
-# #     - authentication_classes: List of authentication classes required for access.
-# #     - permission_classes: List of permission classes required for access.
-# #     - serializer_class: Serializer class for onboarded sales lead data.
-
-# #     Methods:
-# #     - post(request): Custom method to onboard a new sales lead.
-# #     - get(request): Custom method to retrieve details of the authenticated sales lead.
-# #     - delete(request): Custom method to delete a sales lead.
-
-# #     Returns:
-# #     - Response: Result of the requested operation.
-# #     """
-# #     authentication_classes = [JWTAuthentication]
-# #     # permission_classes = [IsAuthenticated]
-# #     permission_classes = [AllowAny]
-
-# #     def post(self, request):
-# #         """
-# #         Onboard a new sales lead.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Result of the onboard operation.
-# #         """
-
-# #         # Onboard sales officer
-# #         result = onboard_sales_lead(request.data, request.user)
-# #         if not result["success"]:
-# #             return Response(result["message"], status=result["status"])
-        
-# #         # Onboard team member
-# #         result = onboard_team_member(request.user, result["sales_lead_instance"])
-# #         if not result["success"]:
-# #             return Response(
-# #                 {"message": "Sales lead onboarded successfully"}, status=status.HTTP_201_CREATED
-# #             )
-    
-# #     def get(self, request):
-# #         """
-# #         Retrieve details of the authenticated sales leads.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Details of the authenticated sales lead.
-# #         """
-
-# #         id = request.user.id
-# #         if id is None:
-# #             return Response(
-# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-# #             )
-        
-# #         try:
-# #             sales_lead = SalesLead.objects.get(user__id=id)
-# #         except SalesLead.DoesNotExist:
-# #             return Response(
-# #                 {"message": f"The requested {sales_lead} does not exist"}, status=status.HTTP_404_NOT_FOUND
-# #             )
-        
-# #     def delete(self, request):
-# #         """
-# #         Delete a sales lead.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Result of the deletion operation
-# #         """
-
-# #         id = request.GET.get("id", None)
-# #         if id is None:
-# #             return Response(
-# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-# #             )
-        
-# #         try:
-# #             sales_lead = SalesLead.objects.get(id=id)
-# #         except SalesLead.DoesNotExist:
-# #             return Response(
-# #                 {"message": "Sales lead does not exist"}, status=status.HTTP_404_NOT_FOUND,
-# #             )
-        
-# #         sales_lead.delete()
-
-# #         return Response(
-# #             data={"message": "Sales lead deleted successfully"}, status=status.HTTP_200_OK
-# #         )
-    
-
-# # class HeadOfSalesView(APIView):
-# #     """
-# #     API endpoint for onboarding, retrieving, and deleting heads of sales.
-
-# #     Requires JWT authentication.
-
-# #     Attributes:
-# #     - authentication_classes: List of authentication classes required for access.
-# #     - permission_classes: List of permission classes required for access.
-# #     - serializer_class: Serializer class for onboarded heads of sales data.
-
-# #     Methods:
-# #     - post(request): Custom method to onboard a new head of sales.
-# #     - get(request): Custom method to retrieve details of the authenticated head of sales.
-# #     - delete(request): Custom method to delete a head of sales.
-
-# #     Returns:
-# #     - Response: Result of the requested operation.
-# #     """
-# #     authentication_classes = [JWTAuthentication]
-# #     # permission_classes = [IsAuthenticated]
-# #     permission_classes = [AllowAny]
-
-# #     def post(self, request):
-# #         """
-# #         Onboard a new head of sales.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Result of the onboard operation.
-# #         """
-
-# #         # Onboard head of sales
-# #         result = onboard_head_of_sales(request.data, request.user)
-# #         if not result["success"]:
-# #             return Response(result["message"], status=result["status"])
-        
-# #         # Onboard team member
-# #         result = onboard_team_member(request.user, result["head_of_sales_instance"])
-# #         if not result["success"]:
-# #             return Response(
-# #                 {"message": "Head of Sales onboarded successfully"}, status=status.HTTP_201_CREATED
-# #             )
-    
-# #     def get(self, request):
-# #         """
-# #         Retrieve details of the authenticated head of sales.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Details of the authenticated head of sales.
-# #         """
-
-# #         id = request.user.id
-# #         if id is None:
-# #             return Response(
-# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-# #             )
-        
-# #         try:
-# #             head_of_sales = HeadOfSales.objects.get(user__id=id)
-# #         except HeadOfSales.DoesNotExist:
-# #             return Response(
-# #                 {"message": f"The requested {head_of_sales} does not exist"}, status=status.HTTP_404_NOT_FOUND
-# #             )
-        
-# #     def delete(self, request):
-# #         """
-# #         Delete a head of sales.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Result of the deletion operation
-# #         """
-
-# #         id = request.GET.get("id", None)
-# #         if id is None:
-# #             return Response(
-# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-# #             )
-        
-# #         try:
-# #             head_of_sales = HeadOfSales.objects.get(id=id)
-# #         except HeadOfSales.DoesNotExist:
-# #             return Response(
-# #                 {"message": "Head of Sales does not exist"}, status=status.HTTP_404_NOT_FOUND,
-# #             )
-        
-# #         head_of_sales.delete()
-
-# #         return Response(
-# #             data={"message": "Head of Sales deleted successfully"}, status=status.HTTP_200_OK
-# #         )
-        
-
-# # class SuperAdminView(APIView):
-# #     """
-# #     API endpoint for onboarding, retrieving, and deleting a super admin.
-
-# #     Requires JWT authentication.
-
-# #     Attributes:
-# #     - authentication_classes: List of authentication classes required for access.
-# #     - permission_classes: List of permission classes required for access.
-# #     - serializer_class: Serializer class for onboarded super admin data.
-
-# #     Methods:
-# #     - post(request): Custom method to onboard a super admin.
-# #     - get(request): Custom method to retrieve details of the authenticated super admin.
-# #     - delete(request): Custom method to delete a super admin.
-
-# #     Returns:
-# #     - Response: Result of the requested operation.
-# #     """
-# #     authentication_classes = [JWTAuthentication]
-# #     # permission_classes = [IsAuthenticated]
-# #     permission_classes = [AllowAny]
-
-# #     def post(self, request):
-# #         """
-# #         Onboard a new super admin.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Result of the onboarding operation.
-# #         """
-
-# #         # Onboard super admin
-# #         result = onboard_super_admin(request.data, request.user)
-# #         if not result["success"]:
-# #             return Response(result["message"], status=result["status"])
-        
-# #         # Onboard team member
-# #         result = onboard_team_member(request.user, result["super_admin_instance"])
-# #         if not result["success"]:
-# #             return Response(
-# #                 {"message": "Head of Sales onboarded successfully"}, status=status.HTTP_201_CREATED
-# #             )
-    
-# #     def get(self, request):
-# #         """
-# #         Retrieve details of the authenticated super admin instance.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Details of the authenticated super admin instance.
-# #         """
-
-# #         id = request.user.id
-# #         if id is None:
-# #             return Response(
-# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-# #             )
-        
-# #         try:
-# #             super_admin = SuperAdmin.objects.get(user__id=id)
-# #         except SuperAdmin.DoesNotExist:
-# #             return Response(
-# #                 {"message": f"The requested {super_admin} does not exist"}, status=status.HTTP_404_NOT_FOUND
-# #             )
-        
-# #     def delete(self, request):
-# #         """
-# #         Delete a super admin.
-
-# #         Args:
-# #         - request: HTTP request object.
-
-# #         Returns:
-# #         - Response: Result of the deletion operation
-# #         """
-
-# #         id = request.GET.get("id", None)
-# #         if id is None:
-# #             return Response(
-# #                 {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-# #             )
-        
-# #         try:
-# #             super_admin = SuperAdmin.objects.get(id=id)
-# #         except SuperAdmin.DoesNotExist:
-# #             return Response(
-# #                 {"message": "Head of Sales does not exist"}, status=status.HTTP_404_NOT_FOUND,
-# #             )
-        
-# #         super_admin.delete()
-
-# #         return Response(
-# #             data={"message": "Super admin deleted successfully"}, status=status.HTTP_200_OK
-# #         )
-    
-    
-class DealView(APIView):
-    """
-    API endpoint for CRUD operations related to deals.
-
-    Attributes:
-    - authentication_classes: List of authentication classes required for access.
-    - permission_classes: List of permission classes required for access.
-    - create_deal_serializer_class: Serializer class for creating a deal.
-    - filter_backends: List of filter backends for deal listing.
-    - filterset_class: Filterset class for deal filtering.
-
-    Methods:
-    - post(request): Create a new deal.
-    - get(request): Retrieve a deal by ID.
-    - delete(request): Delete a deal by ID.
-    - put(request): Update a deal by ID.
-    - patch(request): Partially update a deal by ID.
-
-    Returns:
-    - Response: Result of the CRUD operations on deals.
-    """
-
-    authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated, CanManageDeal]
-    permission_classes = [
-        AllowAny, 
-        # CanManageDeal
-    ]
-
-    # create_deal_serializer_class = CreateDealSerializer
-    filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
-    filterset_class = DealFilter
-
-    def post(self, request):
-        """
-        Create a new deal.
-
-        Args:
-        - request: HTTP request object.
-
-        Returns:
-        - Response: Result of the deal creation operation.
-        """
-        serializer = self.create_deal_serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        print("serializer.validated_data---", serializer.validated_data)
-
-        print("Nameeeee -----------", serializer.validated_data.get("name"))
-
-        name = request.data.get("name", deal.deal_title)
-        description = serializer.validated_data.get("description")
-        deal_status = serializer.validated_data.get("deal_status", "DRAFT")
-        team_members = serializer.validated_data.get("team_member")
-        merchant_overview = serializer.validated_data.get("merchant_overview")
-        industry = serializer.validated_data.get("industry")
-        pipeline_type = serializer.validated_data.get("pipeline_type")
-        deal_type = serializer.validate_data.get("deal_type")
-
-        if pipeline_type == "DEFAULT":
-            # Create a default pipeline with default stages
-            try:
-                with transaction.atomic():
-                    sales_officer = SalesOfficer.objects.get(user=self.request.user)
-                    merchant = sales_officer.merchant
-                    default_stage_names = [
-                        "Qualified",
-                        "Demo scheduled",
-                        "Proposal made",
-                        "Invoice",
-                    ]
-                    pipeline = Pipeline.objects.create(
-                        name = "Default Pipeline", sales_officer=sales_officer, merchant=merchant
-                    )
-                    default_stages = []
-                    for index, name in enumerate(default_stage_names):
-                        stage_kwargs = {"name": name, "order": index}
-                        if name == "New deal":
-                            stage_kwargs["is_new_deal"] = True
-                        default_stages.append(Stage.objects.create(**stage_kwargs))
-
-                    pipeline.stages.add(*default_stages)
-            except Exception as e:
-                return Response(
-                    {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-            
-        
-        else:
-            pipeline = serializer.validated_data.get("pipeline")
-
-        serializer.validated_data["pipeline"] = pipeline
-
-        if deal_deadline != None:
-            deal_deadline = deal_deadline.date()
-
-        if deal_start_date != None:
-            deal_start_date = deal_start_date.date()
-
-         # check if the application start date is in the feature
-        if deal_deadline != None and deal_start_date != None:
-            if deal_start_date > deal_deadline:
-                return Response(
-                    {
-                        "message": "Deal start date cannot be greater than deal deadline"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        if deal_start_date != None:
-            if deal_start_date > datetime.date(datetime.now()):
-                deal_status = "QUEUED"
-
-        # END check if the deal's start date is in present
-
-        # list_of_team_members = []   
-        # if (team_members != None) and (len(team_members) > 0):
-        #     for _team_member in team_members:
-        #         try:
-        #             team_member = TeamMember.objects.get(
-        #                 id=_team_member, merchant=request.user.sales_officer.merchant
-        #             )
-        #             list_of_team_members.append(team_member)
-        #         except TeamMember.DoesNotExist:
-        #             return Response(
-        #                 {"message": "Team member does not exist"}, status=status.HTTP_404_NOT_FOUND,
-        #             )
-                
-        #         print("NaMe----", name)
-
-                # Create deal
-                deal = Deal.objects.create(
-                    deal_title=serializer.validated_data.get("name"),
-                    description=description,
-                    sales_officer=sales_officer,
-                    deal_type=deal_type,
-                    deal_status=deal_status, 
-                    merchant_overview=merchant_overview,
-                    industry=industry,
-                    pipeline_type=pipeline_type,
-                    pipeline=pipeline,
-                )
-
-                print("deal--", deal)
-
-                deal.update_deal_status()
-
-                # if len(list_of_team_members) > 0:
-                #     deal.team_member.set(list_of_team_members)
-
-    def get(self, request, unique_id):
-        """
-        Retrieve a deal by it's unique_id.
-
-        Args:
-        - request: HTTP request object.
-
-        Returns:
-        - Response: Result of retrieving the deal by it's unique_id.
-        """
-        try:
-            deal = Deal.objects.get(unique_id=unique_id)
-        except Deal.DoesNotExist:
-            raise Http404("Deal does not exist")
-        
-        serializer = DealSerializer(deal)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
-    def delete(self, request):
-        """
-        Delete deal by ID.
-
-        Args:
-        - request: HTTP request object.
-
-        Returns:
-        - Response: Result of deleting the deal by it's ID.
-        """
-
-        id = request.GET.get("id", None)
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            deal = Deal.objects.get(id=id)
-        except Deal.DoesNotExist:
-            return Response(
-                {"message": "Deal does not exist"}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        deal.delete()
-
-        return Response(
-            data={"message": "Deal deleted successfully"}, status=status.HTTP_200_OK
-        )
-        
-    def put(self, request):
-        """
-        Update a deal by ID.
-
-        Args:
-        - Response: Result of updating the job by ID.
-        """
-
-        id = request.GET.get("id", None)
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            deal = Deal.objects.get(id=id)
-        except Deal.DoesNotExist:
-            return Response(
-                {"message": "Deal does not exist"}, status=status.HTTP_404_NOT_FOUND
-            )
-        
-        serializer = self.create_deal_serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        name = request.data.get("name", deal.deal_title)
-        description = serializer.validated_data.get("description")
-        deal_status = serializer.validated_data.get("deal_status", "DRAFT")
-        team_members = serializer.validated_data.get("team_member")
-        merchant_overview = serializer.validated_data.get("merchant_overview")
-        industry = serializer.validated_data.get("industry")
-        pipeline_type = serializer.validated_data.get("pipeline_type")
-        # deal_type = serializer.validated_data.get("deal_type")
-
-        # list_of_team_members = []
-        # if (team_members != None) and (len(team_members) > 0):
-        #     for _team_member in team_members:
-        #         try:
-        #             team_member = TeamMember.objects.get(
-        #                 id=_team_member, merchant=request.user.sales_officer.merchant
-        #             )
-        #             list_of_team_members.append(team_member)
-        #         except TeamMember.DoesNotExist:
-        #             return Response(
-        #                 {"message": "Team member does not exist"}, status=status.HTTP_404_NOT_FOUND
-        #             )
-        
-        # Update deal
-        deal.deal_title = name
-        deal.description = description
-        deal.deal_status = deal_status
-        deal.merchant_overview = merchant_overview
-        deal.industry = industry
-        deal.pipeline_type = pipeline_type
-
-        # if len(list_of_team_members) > 0:
-        #     deal.team_member.set(list_of_team_members)
-
-        deal.save()
-
-        deal_serializer = DealSerializer(deal).data
-
-        return Response(deal_serializer, status=status.HTTP_201_CREATED)
-
-    def patch(self, request):
-        """
-        Partially update a deal by ID.
-
-        Args:
-        - request: HTTP request object.
-
-        Returns:
-        - Response: Result of partially updating the deal by ID.
-        """
-
-        id = request.GET.get("id", None)
-        if id is None:
-            return Response(
-                {"message": "id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            deal = deal.objects.get(id=id)
-        except deal.DoesNotExist:
-            return Response(
-                {"message": "Deal does not exist"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        
-        name = request.data.get("name", deal.deal_title)
-        description = request.data.get("description")
-        deal_status = request.data.get("deal_status", "DRAFT")
-        team_members = request.data.get("team_member")
-        merchant_overview = request.data.get("merchant_overview")
-        industry = request.data.get("industry")
-        pipeline_type = request.data.get("pipeline_type")
-
-        # Update deal
-        deal.deal_title = name
-        deal.description = description
-        deal.deal_status = deal_status
-        deal.merchant_overview = merchant_overview
-        deal.industry = industry
-        deal.team_members = team_members
-        deal.pipeline_type = pipeline_type
-
-        deal.save()
-
-        # team_members = request.data.get("team_member")
-        # if team_members is not None:
-        #     list_of_team_members = []
-        #     for _team_member_id in team_members:
-        #         try:
-        #             team_member = TeamMember.objects.get(
-        #                 id=_team_member_id, company=request.user.recruiter.company
-        #             )
-        #             list_of_team_members.append(team_member)
-        #         except TeamMember.DoesNotExist:
-        #             return Response(
-        #                 {"message": f"Team member with ID {_team_member_id} does not exist"},
-        #                 status=status.HTTP_404_NOT_FOUND,
-        #             )
-
-        #     deal.team_member.set(list_of_team_members)
-
-        deal_serializer = DealSerializer(deal).data
-
-        return Response(deal_serializer, status=status.HTTP_200_OK)
-
-
-# class TrackDealView(APIView):
-#     def post(self, request):
-#         unique_id = request.data.get("unique_id")
-#         if unique_id is None:
-#             return Response({"message": "unique_id is required."}, 
-#     )
         
 
 # class DealProgression(APIView):
@@ -1527,197 +1315,6 @@ class DealView(APIView):
 #                 continue
 
 #         return Response({"message": "Deal removed from stages"})
-
-
-class StageView(APIView):
-    # permission_classes = [IsAuthenticated, CanManageStage]
-    permission_classes = [
-        AllowAny, 
-        # CanManageStage
-    ]
-    
-
-    def post(self, request, pipeline_id):
-        # Get the pipeline instance
-        pipeline = get_object_or_404(Pipeline, id=pipeline_id)
-
-        # Create a list to store newly created stages
-        created_stages = []
-
-        # Get the current maximum order of stages in the pipeline
-        max_order = pipeline.stages.aggregate(max_order=Max("order"))["max_order"]
-        if max_order is None:
-            max_order = 0
-
-        # Check if request data is a list of stages
-        if isinstance(request.data, list):
-            for stage_data in request.data:
-                # Increment the order by 1
-                max_order += 1
-
-                # Add "order" field to each stage_data
-                stage_data["order"] = max_order
-
-                # Create a serializer instance for each stage data
-                serializer = StageSerializer(data=stage_data)
-                if serializer.is_valid():
-                    # Save the stage and add it to the pipeline's stages
-                    stage = serializer.save()
-                    pipeline.stages.add(stage)
-                    created_stages.append(stage)
-                else:
-                    # If any stage data is invalid, return error response
-                    return Response(
-                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                    )
-
-            # Save the pipeline to persist changes
-            pipeline.save()
-
-            # Serialize the created stages and return success response
-            created_stages_serializer = StageSerializer(created_stages, many=True)
-            return Response(
-                created_stages_serializer.data, status=status.HTTP_201_CREATED
-            )
-        else:
-            # If request data is not a list, return error response
-            return Response(
-                {"error": "Request data should be a list of stages."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-    def put(self, request, pipeline_id):
-        new_order = request.data.get("new_order", [])
-        if new_order:
-            try:
-                # Get the pipeline instance
-                pipeline = get_object_or_404(Pipeline, id=pipeline_id)
-
-                # Retrieve stages based on the provided order
-                stage_ids = [int(id) for id in new_order]
-                stages = Stage.objects.filter(id__in=stage_ids, pipeline=pipeline)
-
-                if len(stages) != len(stage_ids):
-                    return Response(
-                        {"error": "One or more stages do not belong to this pipeline."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                # Update the order of stages based on the provided order
-                for index, stage_id in enumerate(stage_ids):
-                    stage = stages.get(id=stage_id)
-                    stage.order = (
-                        index
-                    )
-                    stage.save()
-
-                # Serialize the updated pipeline
-                pipeline_serializer = PipelineSerializer(pipeline)
-
-                return Response(
-                    {
-                        "message": "Stages reordered successfully.",
-                        "deal_pipeline": pipeline_serializer.data,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-            except Pipeline.DoesNotExist:
-                return Response(
-                    {"error": "Pipeline does not exist."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            except Stage.DoesNotExist:
-                return Response(
-                    {"error": "One or more stages do not exist."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-        else:
-            return Response(
-                {"error": "New order of stages not provided."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-    def patch(self, request, stage_id, **kwargs):
-        try:
-            stage = Stage.objects.get(id=stage_id)
-        except Stage.DoesNotExist:
-            raise NotFound(f"Stage with id {stage_id} does not exist.")
-
-        serializer = StageSerializer(instance=stage, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def delete(self, request, stage_id, **kwargs):
-        try:
-            stage = Stage.objects.get(id=stage_id)
-            stage.delete()
-            return Response(
-                {"message": "Stage deleted successfully."},
-                status=status.HTTP_204_NO_CONTENT,
-            )
-        except Stage.DoesNotExist:
-            raise Http404(f"Stage with id {stage_id} does not exist.")
-
-
-class PipelineView(APIView):
-    # permission_classes = [IsAuthenticated, CanManagePipeline]
-    permission_classes = [
-        AllowAny, 
-        # CanManagePipeline
-    ]
-
-    def get(self, request, pipeline_id):
-        pipeline = get_object_or_404(Pipeline, id=pipeline_id)
-
-        serializer = PipelineSerializer(pipeline)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request):
-        serializer = PipelineSerializer(data=request.data)
-        if serializer.is_valid():
-            sales_officer = SalesOfficer.objects.get(user=self.request.user)
-            serializer.validated_data["sales_officer"] = sales_officer
-            serializer.validated_data["company"] = sales_officer.merchant
-
-            if not serializer.validated_data.get("is_default"):
-                # If it's a custom pipeline, ensure "New candidate" stage is added
-                with transaction.atomic():
-                    new_pipeline = serializer.save()
-                    new_merchant_stage = Stage.objects.create(
-                        name="New candidate", order=0, is_new_candidate=True
-                    )
-                    new_pipeline.stages.add(new_merchant_stage)
-
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def put(self, request, pipeline_id):
-        try:
-            pipeline = Pipeline.objects.get(id=pipeline_id)
-        except Pipeline.DoesNotExist:
-            return Response(
-                {"error": "Pipeline not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        serializer = PipelineSerializer(pipeline, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pipeline_id):
-        try:
-            pipeline = Pipeline.objects.get(id=pipeline_id)
-        except Pipeline.DoesNotExist:
-            return Response(
-                {"error": "Pipeline not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        pipeline.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
 
 # # class SalesOfficerPipelinesAPIView(APIView):
 

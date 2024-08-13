@@ -64,7 +64,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'djoser',
+    # 'djoser',
     'storages',
     'social_django',
     # 'users',

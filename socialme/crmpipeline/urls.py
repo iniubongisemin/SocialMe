@@ -53,39 +53,6 @@ DEAL_ENDPOINT = [
     # path("delete-deal-progression/<int:deal_id>/", DealProgression.as_view()), 
 ]
 
-
-# SALES_OFFICER_ENDPOINT = [
-#     path("create-sales-officer/", SalesOfficerView.as_view()),
-#     path("get-sales-officer/", SalesOfficerView.as_view()),
-#     path("delete-sales-officer/", SalesOfficerView.as_view()),
-#     path("sales-officer-team/", SalesOfficerTeamView.as_view()),
-# ]
-
-# SALES_LEAD_ENDPOINT = [
-#     path("create-sales-lead/", SalesLeadView.as_view()),
-#     path("get-sales-lead/", SalesLeadView.as_view()),
-#     path("delete-sales-lead/", SalesLeadView.as_view()),
-# ]
-
-# HEAD_OF_SALES_ENDPOINT = [
-#     path("create-head-of-sales/", HeadOfSalesView.as_view()),
-#     path("get-head-of-sales/", HeadOfSalesView.as_view()),
-#     path("delete-head-of-sales/", HeadOfSalesView.as_view()),
-# ]
-
-# SUPER_ADMIN_ENDPOINT = [
-#     path("create-super-admin/", SuperAdminView.as_view()),
-#     path("get-super-admin/", SuperAdminView.as_view()),
-#     path("delete-super-admin/", SuperAdminView.as_view()),
-# ]
-
-# MERCHANT_ENDPOINT = [
-#     path("create-merchant/", MerchantView.as_view(), name="create_merchant"),
-#     path("get-merchant/", MerchantView.as_view()),
-#     path("fetch-all-merchants/", FetchAllMerchants.as_view()),
-#     path("get-role-permissions", RolePermissionsView.as_view()),
-# ]
-
 # PERMISSIONS_ENDPOINT = [
 #     path("team-member-role-permissions/", TeamMemberRolePermissionView.as_view()),
 #     path("team-member-permission/", TeamMemberPermissionView.as_view()),
