@@ -7,9 +7,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from simplejwtauth.models import Company, SuperAdmin, HeadOfSales, SalesLead, SalesOfficer #, Team, TeamMember, TeamMemberInvite
 from simplejwtauth.serializers import SuperAdminSerializer, HeadOfSalesSerializer, SalesLeadSerializer, SalesOfficerSerializer #, CreateUpdateTeamSerializer,
@@ -18,6 +18,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from crmpipeline.reusables import CustomPagination
 # from django.core.mail import EmailMultiAlternatives
 # from .utils import send_code_to_user, generate_otp, send_otp_email
+# from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 
 class CreateUser(generics.CreateAPIView):
@@ -32,13 +33,14 @@ class MerchantView(APIView):
 
     Requires JWT authentication.
     """
+    # permission_classes = [IsAuthenticated]
+    # lookup_field = "id"
+    # queryset = Company.objects.all()
+    # authentication_classes = [JWTAuthentication]
 
     authentication_classes = [JWTAuthentication]
-    # permission_classes = [IsAuthenticated]
     permission_classes = [AllowAny]
-
     serializer_class = CreateCompanySerializer
-
     pagination_class = CustomPagination
 
     def post(self, request):
@@ -62,9 +64,6 @@ class MerchantView(APIView):
         company_name = serializer.validated_data.get("company_name")
         industry = serializer.validated_data.get("industry")
 
-        # company_name = serializer.validated_data.get["company_name"]
-        # id = serializer.validated_data.get["id"]
-
         # check if merchant exists
         existing_merchant = Company.objects.filter(company_name=company_name)
         if existing_merchant.exists():
@@ -73,7 +72,7 @@ class MerchantView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             ) 
         
-        existing_user = User.objects.filter(user_id) 
+        existing_user = User.objects.filter(id=user_id) 
         if not existing_user: 
             return Response(
                 {"message": "User does not exist"},
@@ -81,18 +80,9 @@ class MerchantView(APIView):
             ) 
         
         # create merchant
-        # merchant = get_object_or_404(Company, id=id)
-        print("Creating Created...\n\n\n")
-        merchant = Company.create_company(
-            user=user_id,
-            company_name=company_name,
-            industry=industry
-        )
+        print("Creating Merchant...\n\n\n")
+        merchant = Company.create_company(serializer.validated_data)
         print("Company Created")
-        # serializer = CreateCompanySerializer(data=request.data)
-        # serializer.is_valid(raise_exception=True)
-
-        # merchant_serialized_data = CompanySerializer(merchant).data
 
         return Response(
             {
@@ -102,42 +92,73 @@ class MerchantView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
-    def get(self, request):
+    def get(self, request, id):
         """
-        Retrieve a list of all merchants.
+        Retrieve a merchant by its id or list of all merchants.
 
         Returns:
+        - A merchant
         - Paginated list of merchant details.
 
         Note:
         - Requires JWT authentication.
         """
+        
+        company = Company.retrieve_company(id)
+        print("Retrieving Company....")
+        if company is None:
+            print(serializer.data)
+            return Response(
+                {
+                    "message": "Company not found or you don't have permission to access it"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = self.serializer_class(company)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        
 
-        merchants = Company.objects.all()
-        paginator = CustomPagination()
-        result_page = paginator.paginate_queryset(merchants, request)
-        serializer = CreateCompanySerializer(result_page, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        # merchant = Company.retrieve_company(serializer.validated_data)
 
+        # for merchant in merchants:
+        #     # merchant = Company.retrieve_company(serializer.validated_data)
+        #     merchants = Company.objects.all()
+        #     paginator = CustomPagination()
+        #     result_page = paginator.paginate_queryset(merchants, request)
+        #     serializer = CreateCompanySerializer(result_page, many=True)
+        #     return paginator.get_paginated_response(serializer.data)
+        
+        # return Response(
+        #     {
+        #         "merchant": serializer.data
+        #     },
+        #     status=status.HTTP_200_OK,
+        # )
+    
 
 class SuperAdminView(APIView):
     permission_classes = [AllowAny]
     # permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
+        # user = request.user
         serializer = SuperAdminSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        super_admin, created = SuperAdmin.objects.get_or_create(
-            user=user,
-            # super_admin=super_admin,
-            defaults={
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'email': user.email,
-            }
-        )
+        if request.user.is_anonymous:
+            data = serializer.validated_data
+            super_admin, created = SuperAdmin.objects.get_or_create(**data)
+
+        # super_admin, created = SuperAdmin.objects.get_or_create(
+        #     user=user,
+        #     # super_admin=super_admin,
+        #     defaults={
+        #         'first_name': user.first_name,
+        #         'last_name': user.last_name,
+        #         'email': user.email,
+        #     }
+        # )
 
         if not created:
             return Response({"detail": "Super Admin already exists."}, status=status.HTTP_400_BAD_REQUEST)
@@ -201,21 +222,27 @@ class HeadOfSalesView(APIView):
     # permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
-        super_admin_id = request.data.get('super_admin_id')
-        super_admin = get_object_or_404(SuperAdmin, id=super_admin_id)
-
+        # user = request.user
         serializer = HeadOfSalesSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        head_of_sales, created = HeadOfSales.objects.get_or_create(
-            user=user,
-            head_of_sales=head_of_sales,
-            defaults={
-                'name': user.name,
-                'email': user.email,
-            }
-        )
+        if request.user.is_anonymous:
+            data = serializer.validated_data
+            head_of_sales, created = HeadOfSales.objects.get_or_create(**data)
+        # super_admin_id = request.data.get('super_admin_id')
+        # super_admin = get_object_or_404(SuperAdmin, id=super_admin_id)
+
+        # serializer = HeadOfSalesSerializer(data=request.data)
+        # serializer.is_valid(raise_exception=True)
+
+        # head_of_sales, created = HeadOfSales.objects.get_or_create(
+        #     user=user,
+        #     head_of_sales=head_of_sales,
+        #     defaults={
+        #         'name': user.name,
+        #         'email': user.email,
+        #     }
+        # )
 
         if not created:
             return Response({"detail": "Head of Sales already exists."}, status=status.HTTP_400_BAD_REQUEST)
@@ -279,21 +306,27 @@ class SalesLeadView(APIView):
     # permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
-        head_of_sales_id = request.data.get('head_of_sales_id')
-        head_of_sales = get_object_or_404(HeadOfSales, id=head_of_sales_id)
-
+        # user = request.user
         serializer = SalesLeadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        sales_lead, created = SalesLead.objects.get_or_create(
-            user=user,
-            sales_lead=sales_lead,
-            defaults={
-                'name': user.name,
-                'email': user.email,
-            }
-        )
+        if request.user.is_anonymous:
+            data = serializer.validated_data
+            sales_lead, created = SalesLead.objects.get_or_create(**data)
+        # head_of_sales_id = request.data.get('head_of_sales_id')
+        # head_of_sales = get_object_or_404(HeadOfSales, id=head_of_sales_id)
+
+        # serializer = SalesLeadSerializer(data=request.data)
+        # serializer.is_valid(raise_exception=True)
+
+        # sales_lead, created = SalesLead.objects.get_or_create(
+        #     user=user,
+        #     sales_lead=sales_lead,
+        #     defaults={
+        #         'name': user.name,
+        #         'email': user.email,
+        #     }
+        # )
 
         if not created:
             return Response({"detail": "Sales lead already exists."}, status=status.HTTP_400_BAD_REQUEST)
@@ -357,26 +390,33 @@ class SalesOfficerView(APIView):
     # permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
-        sales_lead_id = request.data.get('sales_lead_id')
-        sales_lead = get_object_or_404(SalesLead, id=sales_lead_id)
+        # user = request.user
+        serializer = SalesOfficerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if request.user.is_anonymous:
+            data = serializer.validated_data
+            sales_officer, created = SalesOfficer.objects.get_or_create(**data)
+            
+        # sales_lead_id = request.data.get('sales_lead_id')
+        # sales_lead = get_object_or_404(SalesLead, id=sales_lead_id)
 
         # referral_code = generate_random_referral_code(6)
         # product_vertical = sales_lead.product_verticals
 
-        serializer = SalesOfficerSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        # serializer = SalesOfficerSerializer(data=request.data)
+        # serializer.is_valid(raise_exception=True)
 
-        sales_officer, created = SalesOfficer.objects.get_or_create(
-            user=user,
-            sales_officer=sales_officer,
-            defaults={
-                'name': user.name,
-                'email': user.email,
-                # 'product_vertical': product_vertical,
-                # 'referral_code': referral_code,
-            }
-        )
+        # sales_officer, created = SalesOfficer.objects.get_or_create(
+        #     user=user,
+        #     sales_officer=sales_officer,
+        #     defaults={
+        #         'name': user.name,
+        #         'email': user.email,
+        #         # 'product_vertical': product_vertical,
+        #         # 'referral_code': referral_code,
+        #     }
+        # )
 
         if not created:
             return Response({"detail": "Sales officer already exists."}, status=status.HTTP_400_BAD_REQUEST)

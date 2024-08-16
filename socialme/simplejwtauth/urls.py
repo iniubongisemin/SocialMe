@@ -15,6 +15,7 @@ urlpatterns = [
     path('create-user/', CreateUser.as_view(), name='create-user'),
     # Pipeline URLs
     path("create-merchant/", MerchantView.as_view(), name="create_merchant"),
+    path("get_merchant/<str:id>/", MerchantView.as_view(), name="get_merchant"),
     path('create-super-admin/', SuperAdminView.as_view()),
     path('delete-super-admin/<str:super_admin_id>/', SuperAdminView.as_view()),
     path('get-super-admin/<str:super_admin_id>/', SuperAdminView.as_view()),

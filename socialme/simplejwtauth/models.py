@@ -59,7 +59,8 @@ class Company(models.Model):
         return company
 
     @classmethod
-    def retrieve_company(cls, id: str, user: Optional[User] = None):  # type: ignore
+    # def retrieve_company(cls, id:str, user:Optional[User] = None):  # type: ignore
+    def retrieve_company(cls, id:str, user=None):  # type: ignore
         """
         Retrieve a company using its ID and associated user if provided.
         Args:
@@ -158,7 +159,7 @@ class SalesOfficer(models.Model):
         on_delete=models.CASCADE,
         null=True, blank=True
     )
-    sales_lead = models.ForeignKey(SalesLead, on_delete=models.CASCADE, related_name='sales_officers')
+    sales_lead = models.ForeignKey(SalesLead, on_delete=models.CASCADE, related_name='sales_officers', null=True)
     first_name = models.CharField(max_length=255, null=True, blank=True)
     last_name = models.CharField(max_length=255, null=True, blank=True)
     phone_number = models.CharField(max_length=20)

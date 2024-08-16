@@ -8,7 +8,7 @@ urlpatterns = [
     # path('api/', include('users.urls')),
     path('api-auth/', include('rest_framework.urls')),
     path('api/', include('simplejwtauth.urls')),
-    # path('crmpipeline/', include('crmpipeline.urls')),
+    path('crmpipeline/', include('crmpipeline.urls')),
     path('api/schema', SpectacularAPIView.as_view(), name='schema'),
     # Optional UI:
     path('api/schema/swagger-ui', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),

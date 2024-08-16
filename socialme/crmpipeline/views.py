@@ -33,7 +33,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from django_filters.rest_framework import DjangoFilterBackend
 from crmpipeline.reusables import (
     CustomPageNumberPagination, CustomPagination, DealFilter, 
-    onboard_super_admin, onboard_head_of_sales, onboard_sales_lead, onboard_sales_officer, onboard_team_member
+    onboard_super_admin, onboard_head_of_sales, onboard_sales_lead, onboard_sales_officer, #onboard_team_member
 )
 from crmpipeline.utils import DataResponse, stage_notification
 
@@ -106,14 +106,72 @@ class LeadView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+class ActivityView(APIView):
+    permission_classes = [AllowAny]
+    # permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ActivitySerializer(data=request.data)
+        serializer.is_valid()
+        print(serializer.data)
+        # user = request.user
+        stage_id = request.data.get('stage_id')
+        # cur_stage = get_object_or_404(Stage, stage_id=stage_id)
+        cur_stage = Stage.objects.get(stage_id=stage_id)
+
+        Activity.objects.create(
+            title=serializer.data['title'],
+            stage_id=cur_stage
+        )
+        print(cur_stage)
+     
+        # activities = request.data["activities"]
+
+        return Response(
+            # {"msg":"hello"},
+            serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+        # Create a list to store the created activities
+        # created_activities = []
+
+        # title = activity_data["title"]
+        # status = activity_data["status"]
+        # if serializer.is_valid():
+        #     activity = serializer.save()
+        #     stage.activity.add(activity)
+        #     created_activities.append(activity)
+        #     # Save the activity in the stage to persist changes
+        #     stage.save()
+        #     # Serialize the created activities and return the success response
+        #     created_activites_serializer = ActivitySerializer(created_activities, many=True)
+        #     # created_activites_serializer.is_valid(raise_exception=True)
+        # else:
+        #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+        # activity, created = Activity.objects.get_or_create(
+        #     user=user,
+        #     defaults={
+        #         'title': activity.title,
+        #         'status': activity.status,
+        #         'stage': stage.stage_id,
+        #     }
+        # )
+
+        # if not created:
+        #     return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        # return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+
 class TaskView(APIView):
     permission_classes = [AllowAny]
     # permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
-        task_id = request.data.get('task_id')
-        task = get_object_or_404(Task, id=task_id)
+        activity_id = request.data.get('activity_id')
+        # task = get_object_or_404(Task, id=task_id)
 
         serializer = TaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -129,34 +187,6 @@ class TaskView(APIView):
 
         if not created:
             return Response({"detail": "Lead already exists."}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-
-class ActivityView(APIView):
-    permission_classes = [AllowAny]
-    # permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        user = request.user
-        id = request.data.get('activity_id')
-        activity = get_object_or_404(Activity, id=id)
-
-        serializer = ActivitySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        activity, created = Activity.objects.get_or_create(
-            user=user,
-            defaults={
-                'id': activity.id,
-                'title': activity.title,
-                'status': activity.status,
-                'stage': activity.stage,
-            }
-        )
-
-        if not created:
-            return Response({"detail": "Activity already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -212,8 +242,6 @@ class TrackDealView(APIView):
         return Response({'message': 'Viewer count updated successfully'}, status=status.HTTP_200_OK)
 
 
-    
-    
 class DealView(APIView):
     """
     API endpoint for CRUD operations related to deals.
@@ -554,56 +582,83 @@ class StageView(APIView):
         AllowAny, 
         # CanManageStage
     ]
-    
 
-    def post(self, request, pipeline_id):
+    def post(self, request):
         # Get the pipeline instance
-        pipeline = get_object_or_404(Pipeline, id=pipeline_id)
-
+        pipeline_id = request.data.get("pipeline_id")
+        pipeline = get_object_or_404(Pipeline, pipeline_id=pipeline_id)
+        # stage_names = request.data["stages"]["name"]
+        stage_names = request.data.get("name", [])
+        
         # Create a list to store newly created stages
         created_stages = []
 
         # Get the current maximum order of stages in the pipeline
         max_order = pipeline.stages.aggregate(max_order=Max("order"))["max_order"]
         if max_order is None:
-            max_order = 0
+            max_order = 4
 
-        # Check if request data is a list of stages
-        if isinstance(request.data, list):
-            for stage_data in request.data:
-                # Increment the order by 1
+        for stage_name in stage_names:
+            serializer = StageSerializer(data={"pipeline_id":pipeline_id, "name": stage_name, "order": max_order + 1, "merchant_count": 0})  # Set defaults for missing fields
+            if serializer.is_valid():
+                stage = serializer.save()
+                pipeline.stages.add(stage)
+                created_stages.append(stage)
                 max_order += 1
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-                # Add "order" field to each stage_data
-                stage_data["order"] = max_order
+        # Save the pipeline to persist changes
+        pipeline.save()
+        # Serialize the created stages and return success response
+        created_stages_serializer = StageSerializer(created_stages, many=True)
+        return Response(
+            created_stages_serializer.data, status=status.HTTP_201_CREATED
+        )
 
-                # Create a serializer instance for each stage data
-                serializer = StageSerializer(data=stage_data)
-                if serializer.is_valid():
-                    # Save the stage and add it to the pipeline's stages
-                    stage = serializer.save()
-                    pipeline.stages.add(stage)
-                    created_stages.append(stage)
-                else:
-                    # If any stage data is invalid, return error response
-                    return Response(
-                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                    )
 
-            # Save the pipeline to persist changes
-            pipeline.save()
 
-            # Serialize the created stages and return success response
-            created_stages_serializer = StageSerializer(created_stages, many=True)
-            return Response(
-                created_stages_serializer.data, status=status.HTTP_201_CREATED
-            )
-        else:
-            # If request data is not a list, return error response
-            return Response(
-                {"error": "Request data should be a list of stages."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # # Get the current maximum order of stages in the pipeline
+        # max_order = pipeline.stages.aggregate(max_order=Max("order"))["max_order"]
+        # if max_order is None:
+        #     max_order = 0
+
+        # # Check if request data is a list of stages
+        # if isinstance(request.data, list):
+        #     for stage_data in request.data:
+        #         # Increment the order by 1
+        #         max_order += 1
+
+        #         # Add "order" field to each stage_data
+        #         stage_data["order"] = max_order
+
+        #         # Create a serializer instance for each stage data
+        #         serializer = StageSerializer(data=stage_data)
+        #         if serializer.is_valid():
+        #             # Save the stage and add it to the pipeline's stages
+        #             stage = serializer.save()
+        #             pipeline.stages.add(stage)
+        #             created_stages.append(stage)
+        #         else:
+        #             # If any stage data is invalid, return error response
+        #             return Response(
+        #                 serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        #             )
+
+        #     # Save the pipeline to persist changes
+        #     pipeline.save()
+
+        #     # Serialize the created stages and return success response
+        #     created_stages_serializer = StageSerializer(created_stages, many=True)
+        #     return Response(
+        #         created_stages_serializer.data, status=status.HTTP_201_CREATED
+        #     )
+        # else:
+        #     # If request data is not a list, return error response
+        #     return Response(
+        #         {"error": "Request data should be a list of stages."},
+        #         status=status.HTTP_400_BAD_REQUEST,
+        #     )
 
     def put(self, request, pipeline_id):
         new_order = request.data.get("new_order", [])
@@ -682,35 +737,34 @@ class StageView(APIView):
 
 class PipelineView(APIView):
     # permission_classes = [IsAuthenticated, CanManagePipeline]
-    permission_classes = [
-        AllowAny, 
-        # CanManagePipeline
-    ]
-
-    def get(self, request, pipeline_id):
-        pipeline = get_object_or_404(Pipeline, id=pipeline_id)
-
-        serializer = PipelineSerializer(pipeline)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    # permission_classes = [AllowAny, CanManagePipeline]
+    permission_classes = [AllowAny]
+    serializer_class = PipelineSerializer
 
     def post(self, request):
-        serializer = PipelineSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            sales_officer = SalesOfficer.objects.get(user=self.request.user)
-            serializer.validated_data["sales_officer"] = sales_officer
-            serializer.validated_data["company"] = sales_officer.merchant
+            # sales_officer = SalesOfficer.objects.get(user=self.request.user)
+            # serializer.validated_data["sales_officer"] = sales_officer
+            # serializer.validated_data["company"] = sales_officer.merchant
 
             if not serializer.validated_data.get("is_default"):
                 # If it's a custom pipeline, ensure "New candidate" stage is added
                 with transaction.atomic():
                     new_pipeline = serializer.save()
-                    new_merchant_stage = Stage.objects.create(
-                        name="New candidate", order=0, is_new_candidate=True
+                    new_stage = Stage.objects.create(
+                        name="New stage", order=0,
                     )
-                    new_pipeline.stages.add(new_merchant_stage)
+                    new_pipeline.stages.add(new_stage)
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request, pipeline_id):
+        pipeline = get_object_or_404(Pipeline, id=pipeline_id)
+
+        serializer = PipelineSerializer(pipeline)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, pipeline_id):
         try:

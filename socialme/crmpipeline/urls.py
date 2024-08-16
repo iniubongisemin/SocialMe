@@ -10,7 +10,8 @@ from crmpipeline.views import (
 )
 
 PIPELINE_ENDPOINT = [
-    path("manage-pipeline/<int:pipeline_id>/", PipelineView.as_view()),
+    path("create-pipeline/", PipelineView.as_view()),
+    path("get-pipeline/<int:pipeline_id>/", PipelineView.as_view()),
     path("edit-pipeline/<int:pipeline_id>/", PipelineView.as_view()),
     path("partially-edit-pipeline/<int:pipeline_id>/", PipelineView.as_view()),
     path("delete-pipeline/<int:pipeline_id>/", PipelineView.as_view()),
@@ -18,7 +19,7 @@ PIPELINE_ENDPOINT = [
 ]
 
 STAGE_ENDPOINT = [
-    path("manage-pipeline-stage/", StageView.as_view()), 
+    path("create-stage/", StageView.as_view()), 
     path("update-pipeline-stage/<int:pipeline_id>/", StageView.as_view()), 
     path("partially-update-pipeline-stage/<int:pipeline_id>/", StageView.as_view()), 
     path("delete-pipeline-stage/<int:pipeline_id>/", StageView.as_view()), 

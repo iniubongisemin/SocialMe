@@ -13,13 +13,15 @@ class StageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Stage
-        fields = (
-                    'stage_id', 'name', 'order', 'pipeline', 'merchant_count', 
+        fields = ('name', 'order', 'merchant_count',)
+        
+        # (
+                    # 'name', 'order', 'merchant_count', # 'pipeline',  
                     #'email_subject', 'email_body', 
                     #'email_text', 'email_notifications_enabled', 
                     # 'automation_enabled', 'move_criteria',
-                )
-
+                # )
+        
 
 class DealSerializer(serializers.ModelSerializer):
     merchant = CreateCompanySerializer()
@@ -55,27 +57,39 @@ class LeadSerializer(serializers.ModelSerializer):
 
 
 class PipelineSerializer(serializers.ModelSerializer):
-    stages = StageSerializer()
-    deals = DealSerializer()
-    sales_officer = SalesOfficerSerializer()
-    merchant = CreateCompanySerializer()
+    stages = StageSerializer(many=True, required=False)
+    # deals = DealSerializer()
+    # sales_officer = SalesOfficerSerializer()
+    # merchant = CreateCompanySerializer()
 
     class Meta:
         model = Pipeline
         fields = (
-            "name", "pipeline_type", "pipeline_id", #"automation_enabled"
+            "name", "pipeline_type", "stages" # "pipeline_id", # "automation_enabled"
         )
+        read_only_fields = ["stages"]
+        depth = 1
+
+    def create(self, validated_data):
+        stages_data = validated_data.pop('stages', [])
+        pipeline = Pipeline.objects.create(**validated_data)
+        
+        for stage_data in stages_data:
+            stage = Stage.objects.create(**stage_data)
+            pipeline.stages.add(stage)
+
+        return pipeline
 
 
 class ActivitySerializer(serializers.ModelSerializer):
     # pipeline = PipelineSerializer()
-    stage = StageSerializer()
+    # stage = StageSerializer()
 
     class Meta:
         model = Activity
         fields = (
-                'title', 'activity_id', 'stage', 'status'
-                 # 'pipeline', 
+                'title', 'stage_id'
+                 # 'pipeline',  'status',
             )
 
 
@@ -88,7 +102,7 @@ class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = (
-                    'title', 'task_id', 'activity', 'description', 'deal', 
+                    'title', 'activity', 'description', 'deal', 
                     'due_date', 'status', 'current_stage', 
                     'created_by', 'merchant', # 'trail', 
                 )

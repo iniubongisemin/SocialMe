@@ -30,7 +30,9 @@ class Pipeline(models.Model):
         ("CUSTOM", "CUSTOM"),
     ]
 
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
     name = models.CharField(max_length=100)
+    stages = models.ManyToManyField("Stage", blank=True)
     pipeline_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     pipeline_type = models.CharField(max_length=100, choices=PIPELINE_TYPE_CHOICES, default="DEFAULT")
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
@@ -47,17 +49,27 @@ class Stage(models.Model):
     name = models.CharField(max_length=100)
     stage_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.IntegerField(default=0)
+    activity = models.ManyToManyField("Activity", blank=True)
     email_subject = models.CharField(max_length=100, blank=True, null=True)
     email_body = models.TextField(blank=True, null=True)
     email_text = models.TextField(blank=True, null=True)
     email_notifications_enabled = models.BooleanField(default=True)
     merchant_count = models.IntegerField(blank=True, null=True)
-    pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE, null=True, blank=True)
+    # pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+
     # automation_enabled = models.BooleanField(blank=False)
     # is_new_merchant = models.BooleanField(default=False)
     # move_criteria = models.IntegerField(default=1)
+
+    @classmethod
+    def create_stage(cls, validated_data):
+        stage = cls.objects.create(
+            user=validated_data.get('pipeline_id'),
+            company_id=validated_data.get("company_id"),
+            is_active=True
+        )
 
     def __str__(self):
         return self.name
@@ -297,8 +309,8 @@ class Activity(models.Model):
 
     title = models.CharField(max_length=100)
     activity_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    stage = models.ForeignKey(Stage, on_delete=models.CASCADE)
-    status = models.CharField(max_length=100, choices=STATUS_CHOICES, null=True, blank=True)
+    stage_id = models.ManyToManyField(Stage, blank=True, related_name='stage')
+    status = models.CharField(max_length=100, choices=STATUS_CHOICES, null=True, blank=True, default="ONGOING")
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
 

@@ -22,28 +22,34 @@ class UserSerializer(serializers.ModelSerializer):
 
 class CreateCompanySerializer(serializers.Serializer):
     user = serializers.CharField(max_length=255)
-    # user = serializers.IntegerField()
-
     company_name = serializers.CharField(allow_blank=True, allow_null=True)
     industry = serializers.CharField(allow_blank=True, allow_null=True)
+    # user = serializers.IntegerField()
     # id = serializers.CharField(allow_blank=True, allow_null=True)
     # teams = serializers.CharField(allow_blank=True, allow_null=True)
     
-    def validate(user, company_name):
+    # def validate(self, company_name, industry):
+    def validate(self, data):
         # user = user
-        # company_name = company_name
+        company_name = data.get("company_name")
+        id = data.get("id")
         # industry = industry
-
+        
         try:
-            company = Company.objects.filter(company_name=company_name)
-            pass 
-
+            # company = Company.objects.filter(company_name=company_name)
+            # industry = Company.objects.filter(company_name=company_name)
+            company = Company.objects.get(company_name=company_name)
+            raise serializers.ValidationError({"message": f"{company_name} already exists"})
         except Company.DoesNotExist:
-            raise serializers.ValidationError(
-                {"message": "Company name already exists"}
-            )
+            pass 
+        return data
 
-        return Company
+        # except Company.DoesNotExist:
+        #     raise serializers.ValidationError(
+        #         {"message": f"{company} name already exists"}
+        #     )
+
+        # return Company
 
 
     class Meta:
@@ -87,19 +93,22 @@ class SuperAdminSerializer(serializers.ModelSerializer):
 class HeadOfSalesSerializer(serializers.ModelSerializer):
     class Meta:
         model = HeadOfSales
-        fields = ['name', 'email', 'super_admin']
+        fields = ['email', 'first_name', 'last_name',]
+        # fields = ['name', 'email', 'super_admin']
 
 
 class SalesLeadSerializer(serializers.ModelSerializer):
     class Meta:
         model = SalesLead
-        fields = ['name', 'email', 'head_of_sales']
+        fields = ['email', 'first_name', 'last_name',]
+        # fields = ['name', 'email', 'head_of_sales']
 
 
 class SalesOfficerSerializer(serializers.ModelSerializer):
     class Meta:
         model = SalesOfficer
-        fields = ['name', 'email', 'sales_lead']
+        fields = ['email', 'first_name', 'last_name',]
+        # fields = ['name', 'email', 'sales_lead']
 
 
 class OnboardSuperAdminSerializer(serializers.ModelSerializer):
