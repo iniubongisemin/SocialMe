@@ -88,7 +88,7 @@ class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Activity
         fields = (
-                'title', 'stage_id'
+                'title', 'stage_id',
                  # 'pipeline',  'status',
             )
 

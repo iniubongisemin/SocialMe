@@ -108,30 +108,56 @@ class LeadView(APIView):
 
 class ActivityView(APIView):
     permission_classes = [AllowAny]
-    # permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        # Ensure stage_id is a list
+        stage_ids = request.data.get('stage_id')
+        if isinstance(stage_ids, str):
+            stage_ids = [stage_ids]
+
+        # Update the request data with the list of stage IDs
+        request.data['stage_id'] = stage_ids
+        
+        # Proceed with the usual processing
         serializer = ActivitySerializer(data=request.data)
-        serializer.is_valid()
-        print(serializer.data)
-        # user = request.user
-        stage_id = request.data.get('stage_id')
-        # cur_stage = get_object_or_404(Stage, stage_id=stage_id)
-        cur_stage = Stage.objects.get(stage_id=stage_id)
+        if serializer.is_valid():
+            # Create the Activity instance
+            activity = Activity.objects.create(
+                title=serializer.validated_data['title']
+            )
+            
+            # Fetch the Stage instances and associate them with the Activity
+            stages = Stage.objects.filter(stage_id__in=stage_ids)
+            activity.stage_id.add(*stages)
+            
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED
+            )
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
 
-        Activity.objects.create(
-            title=serializer.data['title'],
-            stage_id=cur_stage
-        )
-        print(cur_stage)
+        # # user = request.user
+        # stage_id = request.data.get('stage_id')
+        # # cur_stage = get_object_or_404(Stage, stage_id=stage_id)
+        # cur_stage = Stage.objects.get(stage_id=stage_id)
+
+        # Activity.objects.create(
+        #     title=serializer.data['title'],
+        #     stage_id=cur_stage
+        # )
+        # print(cur_stage)
      
-        # activities = request.data["activities"]
+        # # activities = request.data["activities"]
 
-        return Response(
-            # {"msg":"hello"},
-            serializer.data,
-            status=status.HTTP_201_CREATED
-        )
+        # return Response(
+        #     # {"msg":"hello"},
+        #     serializer.data,
+        #     status=status.HTTP_201_CREATED
+        # )
+    
+
         # Create a list to store the created activities
         # created_activities = []
 
