@@ -1,11 +1,11 @@
 from django.urls import path
 from crmpipeline.views import (
     TrackTaskView, TrackActivityView, TrackDealView, 
-    LeadView, ActivityView, TaskView, DealView, PipelineView, StageView,
+    LeadView, ActivityView, TaskView, DealView, PipelineView, StageView, DealProgression,
     # AddTeamMemberView, RemoveTeamMemberView, UpdateTeamMemberRoleView, TeamMemberRoleView, 
     # TeamMemberPermissionView, TeamMemberRolePermissionView, RolePermissionsView, SalesOfficerTeamView, 
     # SalesOfficersPipelines, CreateRolesAndPermissionsAPIView, ChangeDealStageView, 
-    # FetchCreatedDealsView, FetchCreatedActivitiesView, FetchCreatedTasksView, # DealProgression,   
+    # FetchCreatedDealsView, FetchCreatedActivitiesView, FetchCreatedTasksView, #    
     # FetchAllMerchants, SalesOfficerPipelinesAPIView, SalesOfficerView, MerchantView, SalesLeadView, HeadOfSalesView, SuperAdminView,
 )
 
@@ -46,6 +46,7 @@ DEAL_ENDPOINT = [
     path("get-deal/<str:unique_id>/", DealView.as_view()),
     path("delete-deal/<str:unique_id>/", DealView.as_view()),
     path("move-deal/", DealView.as_view(), name="move_deal"),
+    path("move-deal/", DealProgression.as_view(), name="move_deal"),
     path("partially-update-deal/<str:unique_id>/", DealView.as_view()),
     path("track-deal/", TrackDealView.as_view(), name="track_deal_view"),
     # path("fetch-created-deals/", FetchCreatedDealsView.as_view()),

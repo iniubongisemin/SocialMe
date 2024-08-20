@@ -874,8 +874,11 @@ class DealProgression(APIView):
         deal_count = Deal.deal_progression_count(deal_id=deal_id)
         return Response(
             {
-                "message": f"Your deal has been moved to {stage_instance.name} stage"
-            }
+                "message": f"Your deal has been moved to {stage_instance.name} stage",
+                "message": f"Your deal is now at {trail_entry}",
+                "message": f"Your deal is now at {deal.trail}"
+            }, 
+            status=status.HTTP_200_OK
         )
 
     def delete(self, request):

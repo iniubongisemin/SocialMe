@@ -102,7 +102,7 @@ class Deal(models.Model):
     sales_officer = models.ForeignKey(SalesOfficer, on_delete=models.CASCADE, null=True, blank=True)
     industry = models.CharField(max_length=100, blank=True, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    trail = models.JSONField( blank=True, null=True)
+    trail = models.JSONField(blank=True, null=True)
     deal_stage = models.CharField(max_length=100, default="New Deal", null=True, blank=True)
     current_stage = models.ForeignKey(Stage, on_delete=models.SET_NULL, blank=True, null=True)
     pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE, null=True, blank=True)
