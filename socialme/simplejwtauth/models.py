@@ -77,7 +77,7 @@ class Company(models.Model):
         except cls.DoesNotExist:
             company = None
         return company
-    
+
 
 class SuperAdmin(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -94,6 +94,10 @@ class SuperAdmin(models.Model):
     last_name = models.CharField(max_length=255, null=True, blank=True)
     is_staff = models.BooleanField(default=True)
     is_superuser = models.BooleanField(default=True)
+
+    # class Meta:
+    #     verbose_name = "Super Admin"
+    #     verbose_name_plural = "Super Admins"
 
     def __str__(self):
         return f"Super Admin: {self.first_name} {self.last_name}"

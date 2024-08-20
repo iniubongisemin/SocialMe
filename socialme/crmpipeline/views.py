@@ -47,8 +47,8 @@ from crmpipeline.models import (
 )
 
 from crmpipeline.serializers import (
-    PipelineSerializer, StageSerializer, DealSerializer, TaskSerializer, ActivitySerializer, LeadSerializer, 
-    # TeamMemberRoleSerializer, TeamMemberPermissionSerializer, CreateDealSerializer, TeamMemberRolePermissionSerializer, 
+    PipelineSerializer, StageSerializer, DealSerializer, TaskSerializer, ActivitySerializer, LeadSerializer, CreateDealSerializer
+    # TeamMemberRoleSerializer, TeamMemberPermissionSerializer, TeamMemberRolePermissionSerializer, 
     # TeamMemberSerializer, ChangeDealStageSerializer, NewTeamMemberSerializer, DealProgressionStageSerializer,
     # TaskNotificationSerializer, LeadsDataUploadSerializer, 
 )
@@ -63,21 +63,54 @@ from crmpipeline.serializers import (
 
 
 class LeadView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [AllowAny]
+    serializer_class = LeadSerializer
     # permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
-        lead_id = request.data.get('id')
-        lead = get_object_or_404(Lead, id=lead_id)
-
-        serializer = LeadSerializer(data=request.data)
+        # lead_id = request.data.get('id')
+        # lead = get_object_or_404(Lead, id=lead_id)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # serializer = LeadSerializer(data=request.data)
+
+        company = serializer.validated_data.get("company")
+        phone_number = serializer.validated_data.get("phone_number")
+        email_address = serializer.validated_data.get("email_address")
+        stage = serializer.validated_data.get("stage")
+        address = serializer.validated_data.get("address")
+        label = serializer.validated_data.get("label")
+
+        # Check if the objects already exist 
+        existing_lead, phone_number, email_address, stage, address, label = Lead.objects.filter(
+            company=company, 
+            phone_number=phone_number,
+            email_address=email_address,
+            stage=stage,
+            address=address,
+            label=label,
+        )
+        if existing_lead.DoesNotExist:
+            return Response(
+                {"message": f"{existing_lead} does not exist"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        sales_officer = SalesOfficer.objects.filter(id=id)
+        if not sales_officer:
+            return Response(
+                {"message": "Sales Officer does not exist"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Create Lead 
         lead, created = Lead.objects.get_or_create(
-            user=user,
+            # user=user,
             defaults={
-                'id': lead.id,
+                'sales_officer': sales_officer.id,
                 'name': lead.name,
                 'email': lead.email_address,
                 'label': serializer.validated_data.get('label', 'COLD'), # Default set to cold
@@ -88,7 +121,6 @@ class LeadView(APIView):
             return Response({"detail": "Lead already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Checking if the lead label is HOT and convert to Deal if True
-
         if lead.label == "HOT":
             with transaction.atomic():
                 deal = lead.convert_lead_to_deal()
@@ -97,9 +129,9 @@ class LeadView(APIView):
                     return Response({
                         "lead": serializer.data,
                         "deal": {
-                            "id": deal.unique_id,
+                            "deal_id": deal.deal_id,
                             "title": deal.deal_title,
-                            "status": deal.deal_status,
+                            "deal_status": deal.deal_status,
                         }
                     }, status=status.HTTP_201_CREATED)
 
@@ -111,24 +143,24 @@ class ActivityView(APIView):
 
     def post(self, request):
         # Ensure stage_id is a list
-        stage_ids = request.data.get('stage_id')
-        if isinstance(stage_ids, str):
-            stage_ids = [stage_ids]
+        # stage_ids = request.data.get('stage_id')
+        # if isinstance(stage_ids, str):
+        #     stage_ids = [stage_ids]
 
         # Update the request data with the list of stage IDs
-        request.data['stage_id'] = stage_ids
+        # request.data['stage_id'] = stage_ids
         
-        # Proceed with the usual processing
+        # Processing the request
         serializer = ActivitySerializer(data=request.data)
-        if serializer.is_valid():
+        if serializer.is_valid(raise_exception=True):
             # Create the Activity instance
             activity = Activity.objects.create(
                 title=serializer.validated_data['title']
             )
             
             # Fetch the Stage instances and associate them with the Activity
-            stages = Stage.objects.filter(stage_id__in=stage_ids)
-            activity.stage_id.add(*stages)
+            # stages = Stage.objects.filter(stage_id__in=stage_ids)
+            # activity.stage_id.add(*stages)
             
             return Response(
                 serializer.data,
@@ -195,26 +227,52 @@ class TaskView(APIView):
     # permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
-        activity_id = request.data.get('activity_id')
-        # task = get_object_or_404(Task, id=task_id)
+        # user = request.user
+        # created_by = request.user
 
+        # Ensure activity_id is a list
+        activity_ids = request.data.get('activity_id')
+        if isinstance(activity_ids, str):
+            activity_ids = [activity_ids]
+
+        # Update the request data with the list of activity IDs
+        request.data["activity_id"] = activity_ids
+
+        # Proceed with processing the request
         serializer = TaskSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if serializer.is_valid(raise_exception=True):
+            # Create the task instance
+            task = Task.objects.create(
+                # user=created_by,
+                title=serializer.validated_data["title"],
+                description=serializer.validated_data["description"]
+            )
 
-        task, created = Task.objects.get_or_create(
-            user=user,
-            defaults={
-                'title': task.title,
-                'status': task.status,
-                'current_stage': task.current_stage,
-            }
-        )
+            # Fetch the Activity instances and associate them with the Task
+            activities = Activity.objects.filter(activity_id__in=activity_ids)
+            task.activity_id.add(*activities)
 
-        if not created:
-            return Response({"detail": "Lead already exists."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED
+            )
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # task, created = Task.objects.get_or_create(
+        #     user=user,
+        #     defaults={
+        #         'title': task.title,
+        #         'status': task.status,
+        #         'current_stage': task.current_stage,
+        #     }
+        # )
+
+        # if not created:
+        #     return Response({"detail": "Lead already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class TrackTaskView(APIView):
@@ -297,7 +355,7 @@ class DealView(APIView):
         # CanManageDeal
     ]
 
-    # create_deal_serializer_class = CreateDealSerializer
+    create_deal_serializer_class = CreateDealSerializer
     filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
     filterset_class = DealFilter
 
@@ -311,112 +369,28 @@ class DealView(APIView):
         Returns:
         - Response: Result of the deal creation operation.
         """
+        print("\n\n\n\n")
+        print(request.data)
+        print("\n\n\n\n")
+
         serializer = self.create_deal_serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        # serializer.is_valid(raise_exception=True)
+        # if serializer.is_valid(raise_exception=True):
+        if serializer.is_valid():
 
-        print("serializer.validated_data---", serializer.validated_data)
+            print("\n\n\n\n")
+            print(serializer.validated_data)
+            print("\n\n\n\n")
 
-        print("Nameeeee -----------", serializer.validated_data.get("name"))
+            deal = Deal.create(
+                serializer.validated_data
+            )
 
-        name = request.data.get("name", deal.deal_title)
-        description = serializer.validated_data.get("description")
-        deal_status = serializer.validated_data.get("deal_status", "DRAFT")
-        team_members = serializer.validated_data.get("team_member")
-        merchant_overview = serializer.validated_data.get("merchant_overview")
-        industry = serializer.validated_data.get("industry")
-        pipeline_type = serializer.validated_data.get("pipeline_type")
-        deal_type = serializer.validate_data.get("deal_type")
-
-        if pipeline_type == "DEFAULT":
-            # Create a default pipeline with default stages
-            try:
-                with transaction.atomic():
-                    sales_officer = SalesOfficer.objects.get(user=self.request.user)
-                    merchant = sales_officer.merchant
-                    default_stage_names = [
-                        "Qualified",
-                        "Demo scheduled",
-                        "Proposal made",
-                        "Invoice",
-                    ]
-                    pipeline = Pipeline.objects.create(
-                        name = "Default Pipeline", sales_officer=sales_officer, merchant=merchant
-                    )
-                    default_stages = []
-                    for index, name in enumerate(default_stage_names):
-                        stage_kwargs = {"name": name, "order": index}
-                        if name == "New deal":
-                            stage_kwargs["is_new_deal"] = True
-                        default_stages.append(Stage.objects.create(**stage_kwargs))
-
-                    pipeline.stages.add(*default_stages)
-            except Exception as e:
-                return Response(
-                    {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-            
-        
-        else:
-            pipeline = serializer.validated_data.get("pipeline")
-
-        serializer.validated_data["pipeline"] = pipeline
-
-        if deal_deadline != None:
-            deal_deadline = deal_deadline.date()
-
-        if deal_start_date != None:
-            deal_start_date = deal_start_date.date()
-
-         # check if the application start date is in the feature
-        if deal_deadline != None and deal_start_date != None:
-            if deal_start_date > deal_deadline:
-                return Response(
-                    {
-                        "message": "Deal start date cannot be greater than deal deadline"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        if deal_start_date != None:
-            if deal_start_date > datetime.date(datetime.now()):
-                deal_status = "QUEUED"
-
-        # END check if the deal's start date is in present
-
-        # list_of_team_members = []   
-        # if (team_members != None) and (len(team_members) > 0):
-        #     for _team_member in team_members:
-        #         try:
-        #             team_member = TeamMember.objects.get(
-        #                 id=_team_member, merchant=request.user.sales_officer.merchant
-        #             )
-        #             list_of_team_members.append(team_member)
-        #         except TeamMember.DoesNotExist:
-        #             return Response(
-        #                 {"message": "Team member does not exist"}, status=status.HTTP_404_NOT_FOUND,
-        #             )
-                
-        #         print("NaMe----", name)
-
-                # Create deal
-                deal = Deal.objects.create(
-                    deal_title=serializer.validated_data.get("name"),
-                    description=description,
-                    sales_officer=sales_officer,
-                    deal_type=deal_type,
-                    deal_status=deal_status, 
-                    merchant_overview=merchant_overview,
-                    industry=industry,
-                    pipeline_type=pipeline_type,
-                    pipeline=pipeline,
-                )
-
-                print("deal--", deal)
-
-                deal.update_deal_status()
-
-                # if len(list_of_team_members) > 0:
-                #     deal.team_member.set(list_of_team_members)
-
+        return Response(
+            serializer.data, 
+            status=status.HTTP_201_CREATED
+        )
+    
     def get(self, request, unique_id):
         """
         Retrieve a deal by it's unique_id.
@@ -817,6 +791,123 @@ class PipelineView(APIView):
         pipeline.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+class DealProgression(APIView):
+    """
+    API endpoint for managing deal progression within stages.
+
+    Methods:
+    - post(request): Move deals to a specified stage within a pipeline.
+    - delete(request): Remove deals from stages.
+
+    Returns:
+    - Response: Result of deal progression operations.
+    """
+
+    def post(self, request):
+        """
+        Move deals to a specified stage within the pipeline.
+
+        Args:
+        - request: HTTP request object containing deal_id, stage_id.
+
+        Returns:
+        - Response: Result of moving deals to the specified stage.
+        """
+        # Get the user instance associated with the request
+        user_instance = User.objects.get(email=request.user)
+
+        deal_id = request.data.get("deal_id")
+        stage_id = request.data.get("stage_id")
+        deal_ids = request.data.get("deal_ids", [])
+
+        if not deal_id:
+            return Response(
+                {"message": "Deal ID is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            deal = Deal.objects.get(unique_id=deal_id)
+            # pipeline = deal.pipeline
+            stage_instance = deal.current_stage
+            # stage_instance = pipeline.stages.get(id=stage_id)
+        except Deal.DoesNotExist:
+            return Response(
+                {"message": "Invalid deal unique ID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Stage.DoesNotExist:
+            return Response(
+                {"message": "Invalid stage ID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for deal_id in deal_ids:
+            try:
+                deal = Deal.objects.get(id=deal_id)
+                old_stage_id = deal.deal_stage
+                deal.current_stage = stage_instance
+                # deal_progression.deal_stage = stage_instance.name
+                deal.save()
+
+                # Retrieve the name of the user
+                deal_contact = print(user_instance.first_name)
+
+                # Update trail
+                trail_entry = {
+                    "event": "progression",
+                    "timestamp": timezone.now().isoformat(),
+                    "deal_name": deal.deal_title,
+                    "stage_name": stage_instance.name,
+                    "moved_by": deal_contact
+                }
+                deal.trail.append(trail_entry)
+                deal.save()
+
+                # Send email notification if enabled for the stage
+                # if stage_instance.email_notification_enabled:
+                if stage_instance.email_notifications_enabled:
+                    stage_notification(stage_instance, deal)
+
+            except Deal.DoesNotExist:
+                continue
+        deal_count = Deal.deal_progression_count(deal_id=deal_id)
+        return Response(
+            {
+                "message": f"Your deal has been moved to {stage_instance.name} stage"
+            }
+        )
+
+    def delete(self, request):
+        """
+        Remove deals from stages.
+
+        Args:
+        - request: HTTP request object containing deal_ids.
+
+        Returns:
+        - Response: Result of removing candidates from stages.
+        """
+
+        deal_ids = request.data.get("deal_ids", [])
+
+        for deal_id in deal_ids:
+            try:
+                deal = Deal.objects.get(id=deal_id)
+                old_stage_id = deal.current_stage
+                deal.current_stage = None
+                deal.save()
+
+                # Update counts for the stages
+                if old_stage_id:
+                    old_stage = Stage.objects.get(id=old_stage_id)
+                    old_stage.deal_count = F("deal_count") - 1
+                    old_stage.save()
+
+            except Deal.DoesNotExist:
+                continue
+
+        return Response({"message": "Deal removed from stages"})
 
 # class AddTeamMemberView(CreateAPIView):
 #     """
@@ -1280,121 +1371,6 @@ class PipelineView(APIView):
 #             return TeamMember.objects.filter(company=merchant)
         
 
-# class DealProgression(APIView):
-#     """
-#     API endpoint for managing deal progression within stages.
-
-#     Methods:
-#     - post(request): Move deals to a specified stage within a deal's pipeline.
-#     - delete(request): Remove deals from stages.
-
-#     Returns:
-#     - Response: Result of deal progression operations.
-#     """
-
-#     def post(self, request):
-#         """
-#         Move deals to a specified stage within the pipeline.
-
-#         Args:
-#         - request: HTTP request object containing deal_unique_id, stage_id, and task_ids.
-
-#         Returns:
-#         - Response: Result of moving deals to the specified stage.
-#         """
-#         # Get the user instance associated with the request
-#         user_instance = UserAccount.objects.get(email=request.user)
-
-#         deal_unique_id = request.data.get("deal_unique_id")
-#         stage_id = request.data.get("stage_id")
-#         dealprogression_unique_ids = request.data.get("dealprogression_unique_ids", [])
-
-#         if not deal_unique_id:
-#             return Response(
-#                 {"message": "Deal unique ID is required"},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-
-#         try:
-#             deal = Deal.objects.get(unique_id=deal_unique_id)
-#             pipeline = deal.pipeline
-#             stage_instance = pipeline.stages.get(id=stage_id)
-#         except Deal.DoesNotExist:
-#             return Response(
-#                 {"message": "Invalid deal unique ID"},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-#         except Stage.DoesNotExist:
-#             return Response(
-#                 {"message": "Invalid stage ID"},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-
-#         for dealprogression_unique_id in dealprogression_unique_ids:
-#             try:
-#                 deal = Deal.objects.get(id=dealprogression_unique_id)
-#                 old_stage_id = deal.deal_stage
-#                 deal.current_stage = stage_instance
-#                 # deal_progression.deal_stage = stage_instance.name
-#                 deal.save()
-
-#                 # Retrieve the full name of the user
-#                 user_fullname = user_instance.get_fullname()
-
-#                 # Update trail
-#                 trail_entry = {
-#                     "event": "progression",
-#                     "timestamp": timezone.now().isoformat(),
-#                     "deal_name": deal.name,
-#                     "stage_name": stage_instance.name,
-#                     "moved_by": user_fullname
-#                 }
-#                 deal.trail.append(trail_entry)
-#                 deal.save()
-
-#                 # Send email notification if enabled for the stage
-#                 if stage_instance.email_notification_enabled:
-#                     stage_notification(stage_instance, deal)
-
-#             except Deal.DoesNotExist:
-#                 continue
-#         deal_count = Deal.deal_progression_count(unique_id=dealprogression_unique_id)
-#         return Response(
-#             {
-#                 "message": f"Your deal has been moved to {stage_instance.name} stage"
-#             }
-#         )
-
-#     def delete(self, request):
-#         """
-#         Remove deals from stages.
-
-#         Args:
-#         - request: HTTP request object containing deal_ids.
-
-#         Returns:
-#         - Response: Result of removing candidates from stages.
-#         """
-
-#         deal_ids = request.data.get("deal_ids", [])
-
-#         for deal_id in deal_ids:
-#             try:
-#                 deal = Deal.objects.get(id=deal_id)
-#                 old_stage_id = deal.current_stage
-#                 deal.current_stage = None
-#                 deal.save()
-
-#                 # Update counts for the stages
-#                 if old_stage_id:
-#                     old_stage = Stage.objects.get(id=old_stage_id)
-#                     old_stage.deal_count = F("deal_count") - 1
-#                     old_stage.save()
-
-#             except Deal.DoesNotExist:
-#                 continue
-
-#         return Response({"message": "Deal removed from stages"})
 
 # # class SalesOfficerPipelinesAPIView(APIView):
 

@@ -49,11 +49,10 @@ class Stage(models.Model):
     name = models.CharField(max_length=100)
     stage_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.IntegerField(default=0)
-    activity = models.ManyToManyField("Activity", blank=True)
     email_subject = models.CharField(max_length=100, blank=True, null=True)
     email_body = models.TextField(blank=True, null=True)
     email_text = models.TextField(blank=True, null=True)
-    email_notifications_enabled = models.BooleanField(default=True)
+    email_notifications_enabled = models.BooleanField(default=False)
     merchant_count = models.IntegerField(blank=True, null=True)
     # pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
@@ -98,22 +97,22 @@ class Deal(models.Model):
     deal_id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     deal_title = models.CharField(max_length=100, null=True, blank=True)
     description = models.TextField(max_length=300, null=True)
-    merchant = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='leads')
+    merchant = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='leads', null=True)
+    phone_num = models.CharField(max_length=50)
     sales_officer = models.ForeignKey(SalesOfficer, on_delete=models.CASCADE, null=True, blank=True)
     industry = models.CharField(max_length=100, blank=True, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    trail = ArrayField(models.JSONField(), default=list)
+    trail = models.JSONField( blank=True, null=True)
+    deal_stage = models.CharField(max_length=100, default="New Deal", null=True, blank=True)
     current_stage = models.ForeignKey(Stage, on_delete=models.SET_NULL, blank=True, null=True)
+    pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE, null=True, blank=True)
     contact_person = models.CharField(max_length=100)
     value = models.CharField(max_length=100)
     product = models.CharField(max_length=100, choices=PRODUCT_VERTICALS_CHOICES)
-    start_date = models.DateTimeField             (auto_now_add=True)
+    start_date = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     expected_close_date = models.DateTimeField(auto_now_add=True)
-    phone_num = models.CharField(max_length=50)
     email = models.EmailField()
-    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
     label = models.CharField(
         max_length=100,
         choices=LABEL,
@@ -128,20 +127,44 @@ class Deal(models.Model):
         blank=True,
         null=True,
     )
+
+    # created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+    # updated_at = models.DateTimeField(_("date updated"), auto_now=True)
     # team_member = models.ManyToManyField(SalesOfficer, related_name="team_member")
     
     class Meta:
         verbose_name = "DEAL"
-        verbose_name_plural = "DEAL"
+        verbose_name_plural = "DEALS"
 
     def __str__(self):
         return self.deal_title
 
     @classmethod
-    def create(cls, **kwargs):
-        deal = cls(**kwargs)
-        deal.save()
-        return deal
+    def create(cls, validated_data, **kwargs):
+        new_deal = cls.objects.create(
+            deal_title=validated_data.get("deal_title"), 
+            description=validated_data.get("description"), 
+            merchant=validated_data.get("merchant"), 
+            sales_officer=validated_data.get("sales_officer"), 
+            phone_num=validated_data.get("phone_num"), 
+            user=validated_data.get("user"), 
+            industry=validated_data.get("industry"), 
+            current_stage=validated_data.get("current_stage"), 
+            value=validated_data.get("value"), 
+            product=validated_data.get("product"), 
+            start_date=validated_data.get("start_date"), 
+            updated_at=validated_data.get("updated_at"), 
+            expected_close_date=validated_data.get("expected_close_date"), 
+            email=validated_data.get("email"), 
+            label=validated_data.get("label"), 
+            deal_status=validated_data.get("deal_status"), 
+        )
+
+        cls.save(new_deal)
+        
+        # deal = cls(**kwargs)
+        # deal.save()
+        # return deal
     
     @classmethod
     def deal_progression_count(cls, deal_id):
@@ -235,6 +258,7 @@ class Lead(models.Model):
     lead_id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     name = models.CharField(max_length=100, blank=True, null=True)
     phone_number = models.CharField(max_length=100, blank=True, null=True)
+    sales_officer = models.ForeignKey(SalesOfficer, on_delete=models.CASCADE, null=True)
     email_address = models.EmailField()
     company = models.CharField(max_length=100, blank=True, null=True)
     stage = models.ForeignKey(Stage, on_delete=models.CASCADE, blank=True, null=True)
@@ -262,6 +286,7 @@ class Lead(models.Model):
                 merchant = self.company,
                 current_stage = self.stage,
                 contact_person = self.name,
+                sales_officer = self.sales_officer,
                 label = self.label,
                 deal_status = "ONGOING", # Default value
                 value = "0", # Default value
@@ -309,13 +334,16 @@ class Activity(models.Model):
 
     title = models.CharField(max_length=100)
     activity_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    stage_id = models.ManyToManyField(Stage, blank=True, related_name='stage')
+    deal = models.ForeignKey(Deal, on_delete=models.CASCADE, null=True, blank=True)
+    # task = models.ManyToManyField("Task", blank=True)
     status = models.CharField(max_length=100, choices=STATUS_CHOICES, null=True, blank=True, default="ONGOING")
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
 
     def __str__(self) -> str:
         return self.title
+    # def __str__(self):
+    #     return str(self.activity_id)
 
 
 class Task(models.Model):
@@ -328,19 +356,19 @@ class Task(models.Model):
 
     title = models.CharField(max_length=255)
     task_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, null=True)
+    activity_id = models.ForeignKey(Activity, on_delete=models.CASCADE, blank=True, null=True, related_name="activity")
     description = models.TextField(blank=True, null=True)
     deal = models.ForeignKey(Deal, on_delete=models.CASCADE, null=True)
-    deal_progression = models.ForeignKey(DealProgression, on_delete=models.CASCADE, null=True)
+    # deal_progression = models.ForeignKey(DealProgression, on_delete=models.CASCADE, null=True)
     status = models.CharField(max_length=100, choices=STATUS_CHOICES, default="uncompleted")
     current_stage = models.ForeignKey(Stage, related_name="todos", on_delete=models.SET_NULL, null=True, blank=True)
     trail = models.JSONField(default=dict, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     merchant = models.ForeignKey(Company, on_delete=models.PROTECT, null=True, blank=True, related_name="merchants")
     deadline = models.DateTimeField(blank=True, null=True)
     deadline_reminder = models.BooleanField(default=True)
     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+    # created_by = models.ForeignKey(User, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.task_id
@@ -357,6 +385,7 @@ class TaskNotification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user} about {self.task}"
+    
     
 
 class TeamMemberRole(models.Model):

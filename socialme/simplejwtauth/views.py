@@ -79,7 +79,7 @@ class MerchantView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             ) 
         
-        # create merchant
+        # Create merchant
         print("Creating Merchant...\n\n\n")
         merchant = Company.create_company(serializer.validated_data)
         print("Company Created")

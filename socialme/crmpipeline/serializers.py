@@ -27,6 +27,7 @@ class DealSerializer(serializers.ModelSerializer):
     merchant = CreateCompanySerializer()
     sales_officer = SalesOfficerSerializer()
 
+
     # def get_fields(self):
     #     fields = super(DealSerializer, self).get_fields()
     #     return fields
@@ -40,19 +41,31 @@ class DealSerializer(serializers.ModelSerializer):
     class Meta:
         model = Deal
         fields = (
-            'deal_id', 'deal_title', 'description', 'merchant', 'sales_officer', 
-            'industry', 'current_stage', 'contact_person', 'pipeline_type', 'pipeline',  
+            'deal_title', 'description', 'merchant', 'sales_officer', 'phone_num', 'user',
+            'industry', 'current_stage', 'contact_person', 'pipeline',  
             'value', 'product', 'start_date', 'updated_at', 'expected_close_date', 
-            'phone_num', 'email', 'label', 'deal_status', # 'team_member', 
+            'email', 'label', 'deal_status',
+            "label", "deal_status" 
+             # 'team_member', 'deal_id', 'trail', 'pipeline_type', 
         )
+
+class CreateDealSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Deal
+        fields = (
+            'deal_title', 'description', 'merchant', 'sales_officer', 'phone_num', 'user',
+            'industry', 'current_stage', 'value', 'product', 'start_date', 'updated_at', 'expected_close_date', 
+            'email', 'label', 'deal_status', 
+        )
+        
 
 
 class LeadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
         fields = (
-        "lead_id", "name", "phone_number", "email_address", 
-        "company", "stage", "address", "label",
+        "name", "phone_number", "email_address", 
+        "company", "stage", "address", "label", "sales_officer",
     )
 
 
@@ -88,24 +101,31 @@ class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Activity
         fields = (
-                'title', 'stage_id',
-                 # 'pipeline',  'status',
+                'title', 'deal',
+                 # 'pipeline', 'status',
             )
+        
+        # def __str__(self) -> str:
+        #     fields = ("title", "stage_id")
+        #     stage_id = "('%s')"%",".join(fields)
+            
+        #     return stage_id
 
 
 class TaskSerializer(serializers.ModelSerializer):
-    activity = ActivitySerializer()
-    current_stage = StageSerializer()
-    merchant = CreateCompanySerializer()
+    # activity = ActivitySerializer()
+    # current_stage = StageSerializer()
+    # merchant = CreateCompanySerializer()
     # created_by = UserSerializer()
 
     class Meta:
         model = Task
         fields = (
-                    'title', 'activity', 'description', 'deal', 
-                    'due_date', 'status', 'current_stage', 
-                    'created_by', 'merchant', # 'trail', 
+                    'title', 'activity_id', 'description', # 'created_by',
+                    # 'deal', 'due_date', 'status', 'current_stage', 
+                    # 'created_by', 'merchant', 'trail', 
                 )
+
 
 class OnboardSalesOfficerSerializer(serializers.ModelSerializer):
     role = serializers.CharField()
@@ -123,6 +143,7 @@ class OnboardSalesOfficerSerializer(serializers.ModelSerializer):
             "role", 
             "company", 
         ]
+
 
 
 # class SalesOfficerSerializer(serializers.ModelSerializer):
@@ -230,25 +251,6 @@ class OnboardSalesOfficerSerializer(serializers.ModelSerializer):
 #         return data
     
 
-# class CreateDealSerializer(serializers.ModelSerializer):
-#     name = serializers.CharField()
-#     description = serializers.CharField(required=False, allow_blank=True)
-#     industry = serializers.CharField(required=False, allow_blank=True)
-#     deal_status = serializers.ChoiceField(choices=Deal.DEAL_STATUS, required=False, allow_null=True)
-#     team_member = serializers.ListField(child=serializers.IntegerField(), required=False, allow_null=True)
-#     merchant_overview = serializers.CharField(required=False, allow_blank=True)
-#     # pipeline_type = serializers.ChoiceField(choices=Deal.PIPELINE_TYPE_CHOICES, required=False, allow_null=True)
-#     deal_start_date = serializers.DateTimeField(required=True)
-#     deal_deadline = serializers.DateTimeField(required=True)
-#     deal_type = serializers.CharField(required=False)
-
-#     def create(self, validated_data):
-#         deal_tags = validated_data.pop("job_tags", None)
-#         deal = Deal.objects.create(**validated_data)
-#         if deal_tags:
-#             deal.deal_tags = deal_tags
-#             deal.save()
-#         return deal
 
 
 # class CreateMerchantSerializer(serializers.ModelSerializer):
