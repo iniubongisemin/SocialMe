@@ -45,7 +45,6 @@ DEAL_ENDPOINT = [
     path("create-deal/", DealView.as_view()),
     path("get-deal/<str:unique_id>/", DealView.as_view()),
     path("delete-deal/<str:unique_id>/", DealView.as_view()),
-    path("move-deal/", DealView.as_view(), name="move_deal"),
     path("move-deal/", DealProgression.as_view(), name="move_deal"),
     path("partially-update-deal/<str:unique_id>/", DealView.as_view()),
     path("track-deal/", TrackDealView.as_view(), name="track_deal_view"),

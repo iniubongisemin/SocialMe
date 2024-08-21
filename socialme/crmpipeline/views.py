@@ -790,8 +790,10 @@ class PipelineView(APIView):
 
         pipeline.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
 
 class DealProgression(APIView):
+    permission_classes = [AllowAny]
     """
     API endpoint for managing deal progression within stages.
 
@@ -803,80 +805,84 @@ class DealProgression(APIView):
     - Response: Result of deal progression operations.
     """
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         """
         Move deals to a specified stage within the pipeline.
 
         Args:
-        - request: HTTP request object containing deal_id, stage_id.
+        - request: HTTP request object containing stage_id and a list of deal_id(s).
 
         Returns:
         - Response: Result of moving deals to the specified stage.
         """
         # Get the user instance associated with the request
-        user_instance = User.objects.get(email=request.user)
+        # user_instance = User.objects.get(email=request.user)
 
-        deal_id = request.data.get("deal_id")
         stage_id = request.data.get("stage_id")
         deal_ids = request.data.get("deal_ids", [])
+        existing_deals = []
+        non_existent_deals = []
 
-        if not deal_id:
-            return Response(
-                {"message": "Deal ID is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        for deal_id in deal_ids:
+            try:
+                deal = Deal.objects.get(deal_id=deal_id)
+                existing_deals.append(deal_id)
+            except Deal.DoesNotExist:
+                non_existent_deals.append(deal_id)
+            continue
+
+        print("\n\n\n\n")
+        print(existing_deals)
+        print(non_existent_deals)
+        print("\n\n\n\n")
 
         try:
-            deal = Deal.objects.get(unique_id=deal_id)
-            # pipeline = deal.pipeline
-            stage_instance = deal.current_stage
-            # stage_instance = pipeline.stages.get(id=stage_id)
-        except Deal.DoesNotExist:
-            return Response(
-                {"message": "Invalid deal unique ID"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            stage_instance = Stage.objects.get(stage_id=stage_id)
+
+            print("\n\n\n\n\n\n")
+            print(stage_instance)
+            print("\n\n\n\n\n\n")
+        
         except Stage.DoesNotExist:
             return Response(
                 {"message": "Invalid stage ID"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        for deal_id in deal_ids:
+        for deal_id in existing_deals:
             try:
-                deal = Deal.objects.get(id=deal_id)
-                old_stage_id = deal.deal_stage
+                deal = Deal.objects.get(deal_id=deal_id)
+                old_stage_id = deal.current_stage_id
                 deal.current_stage = stage_instance
-                # deal_progression.deal_stage = stage_instance.name
-                deal.save()
 
-                # Retrieve the name of the user
-                deal_contact = print(user_instance.first_name)
+                if deal.trail is None:
+                    deal.trail = []
 
-                # Update trail
+                # Update trail field
                 trail_entry = {
                     "event": "progression",
                     "timestamp": timezone.now().isoformat(),
                     "deal_name": deal.deal_title,
                     "stage_name": stage_instance.name,
-                    "moved_by": deal_contact
+                    # "moved_by": deal_contact
                 }
                 deal.trail.append(trail_entry)
                 deal.save()
 
                 # Send email notification if enabled for the stage
-                # if stage_instance.email_notification_enabled:
                 if stage_instance.email_notifications_enabled:
                     stage_notification(stage_instance, deal)
 
             except Deal.DoesNotExist:
                 continue
+
+        # Get the deal progression count 
         deal_count = Deal.deal_progression_count(deal_id=deal_id)
         return Response(
             {
                 "message": f"Your deal has been moved to {stage_instance.name} stage",
-                "message": f"Your deal is now at {trail_entry}",
-                "message": f"Your deal is now at {deal.trail}"
+                "trail": deal.trail,
+                "deal_count": deal_count
             }, 
             status=status.HTTP_200_OK
         )
@@ -911,6 +917,72 @@ class DealProgression(APIView):
                 continue
 
         return Response({"message": "Deal removed from stages"})
+    
+
+# class DealProgression(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request, *args, **kwargs):
+#         deal_id = request.data.get("deal_id")
+#         stage_id = request.data.get("stage_id")
+#         deal_ids = request.data.get("deal_ids", [])
+
+#         print("\n\n\n\n\n")
+#         print(request.data)
+#         print("\n\n\n\n\n")
+
+#         if not deal_id or not stage_id:
+#             return Response(
+#                 {"message": "Deal ID and Stage ID are required"},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
+
+#         try:
+#             stage_instance = Stage.objects.get(stage_id=stage_id)
+#         except Stage.DoesNotExist:
+#             return Response(
+#                 {"message": "Invalid stage ID"},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
+
+#         for deal_id in deal_ids:
+#             try:
+#                 deal = Deal.objects.get(deal_id=deal_id)
+#                 old_stage_id = deal.current_stage_id
+#                 deal.current_stage = stage_instance
+
+#                 # Update the trail field
+#                 if deal.trail is None:
+#                     deal.trail = []
+
+#                 trail_entry = {
+#                     "event": "progression",
+#                     "timestamp": timezone.now().isoformat(),
+#                     "deal_name": deal.deal_title,
+#                     "stage_name": stage_instance.name,
+#                 }
+#                 deal.trail.append(trail_entry)
+#                 deal.save()
+
+#                 # Optional: Send email notification if enabled for the stage
+#                 if stage_instance.email_notifications_enabled:
+#                     stage_notification(stage_instance, deal)
+
+#             except Deal.DoesNotExist:
+#                 continue
+
+#         # Get deal progression count
+#         deal_count = Deal.deal_progression_count(deal_id=deal_id)
+#         return Response(
+#             {
+#                 "message": f"Your deals have been moved to {stage_instance.name} stage",
+#                 "trail": deal.trail,
+#                 "deal_count": deal_count
+#             }, 
+#             status=status.HTTP_200_OK
+#         )
+
+
 
 # class AddTeamMemberView(CreateAPIView):
 #     """

@@ -102,7 +102,7 @@ class Deal(models.Model):
     sales_officer = models.ForeignKey(SalesOfficer, on_delete=models.CASCADE, null=True, blank=True)
     industry = models.CharField(max_length=100, blank=True, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    trail = models.JSONField(blank=True, null=True)
+    trail = models.JSONField(blank=True, null=True, default=list)
     deal_stage = models.CharField(max_length=100, default="New Deal", null=True, blank=True)
     current_stage = models.ForeignKey(Stage, on_delete=models.SET_NULL, blank=True, null=True)
     pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE, null=True, blank=True)
@@ -169,7 +169,7 @@ class Deal(models.Model):
     @classmethod
     def deal_progression_count(cls, deal_id):
         # Filter all deals for the given deal_id where current stage is not null
-        all_merchants = cls.objects.filter(deal__unique_id=deal_id, current_stage__isnull=False)
+        all_merchants = cls.objects.filter(deal_id=deal_id, current_stage__isnull=False)
 
         # Get distinct current stages
         unique_stage = all_merchants.values("current_stage").distinct()
@@ -179,14 +179,14 @@ class Deal(models.Model):
             data.append(stage.get("current_stage"))
 
         all_count = {}
-        total_count = cls.objects.filter(deal__unique_id=deal_id).count() or 0
+        total_count = cls.objects.filter(deal_id=deal_id).count() or 0
 
         for stage_id in data:
-            # Get the count of applications for the current stage
-            this_count = all_merchants.filter(current_stage__id=stage_id).count() or 0
+            # Get the count of deals for the current stage
+            this_count = all_merchants.filter(current_stage=stage_id).count() or 0
 
             # Get the stage name from the Stage model
-            stage_name = Stage.objects.filter(id=stage_id).values_list("name", flat=True).first()
+            stage_name = Stage.objects.filter(stage_id=stage_id).values_list("name", flat=True).first()
 
             # Update the all_count dictionary with the stage name
             all_count.update({stage_name: this_count})
@@ -228,8 +228,8 @@ class Deal(models.Model):
 
             return this_data
         
-        def __str__(self):
-            return f"Deal for {self.name}"
+        # def __str__(self):
+        #     return f"Deal for {self.name}"
         
 
     def update_deal_status(self):
@@ -246,6 +246,9 @@ class Deal(models.Model):
             self.deal_status = "ONGOING"
 
         self.save()
+
+    def __str__(self):
+        return f"Deal for {self.deal_title}"
 
 
 class Lead(models.Model):
@@ -296,33 +299,6 @@ class Lead(models.Model):
         else:
             return None
         
-
-class DealProgression(models.Model):
-    STATUS_CHOICES = [
-        ("COMPLETED", "COMPLETED"),
-        ("CANCELLED", "CANCELLED"),
-        ("ONGOING", "ONGOING"),
-        ("RESCHEDULE", "RESCHEDULE"),
-    ]
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    deal = models.ForeignKey(Deal, on_delete=models.CASCADE, null=True, blank=True)
-    name = models.CharField(max_length=100, null=True, blank=True)
-    email = models.EmailField()
-    trail = ArrayField(models.JSONField(), default=list)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, null=True, blank=True)
-    unique_id = models.CharField(max_length=20, blank=True, null=True)
-    current_stage = models.ForeignKey(Stage, on_delete=models.CASCADE, null=True, blank=True)
-    pipeline = models.ForeignKey("Pipeline", on_delete=models.SET_NULL, null=True)
-    created_at = models.DateTimeField(_("date created"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("date updated"), auto_now=True)
-
-    class Meta:
-        verbose_name = "DEAL PROGRESSION"
-        verbose_name_plural = "DEAL PROGRESSIONS"
-
-    def __str__(self):
-        return f"Deal progression for {self.name}"
-    
 
 class Activity(models.Model):
     STATUS_CHOICES = [
@@ -386,7 +362,6 @@ class TaskNotification(models.Model):
     def __str__(self):
         return f"Notification for {self.user} about {self.task}"
     
-    
 
 class TeamMemberRole(models.Model):
     ROLES = [
@@ -408,6 +383,120 @@ class TeamMemberRole(models.Model):
 
         def __str__(self):
             return self.name
+
+# class DealProgression(models.Model):
+#     STATUS_CHOICES = [
+#         ("COMPLETED", "COMPLETED"),
+#         ("CANCELLED", "CANCELLED"),
+#         ("ONGOING", "ONGOING"),
+#         ("RESCHEDULE", "RESCHEDULE"),
+#     ]
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     deal = models.ForeignKey(Deal, on_delete=models.CASCADE, null=True, blank=True)
+#     name = models.CharField(max_length=100, null=True, blank=True)
+#     email = models.EmailField()
+#     trail = ArrayField(models.JSONField(), default=list)
+#     status = models.CharField(max_length=20, choices=STATUS_CHOICES, null=True, blank=True)
+#     unique_id = models.CharField(max_length=20, blank=True, null=True)
+#     current_stage = models.ForeignKey(Stage, on_delete=models.CASCADE, null=True, blank=True)
+#     pipeline = models.ForeignKey("Pipeline", on_delete=models.SET_NULL, null=True)
+#     created_at = models.DateTimeField(_("date created"), auto_now_add=True)
+#     updated_at = models.DateTimeField(_("date updated"), auto_now=True)
+
+#     class Meta:
+#         verbose_name = "DEAL PROGRESSION"
+#         verbose_name_plural = "DEAL PROGRESSIONS"
+
+#     def __str__(self):
+#         return f"Deal progression for {self.name}"
+
+# class Deal(models.Model):
+#     trail = models.JSONField(blank=True, null=True, default=list)
+#     current_stage = models.ForeignKey(Stage, on_delete=models.SET_NULL, null=True, blank=True)
+#     deal_title = models.CharField(max_length=255)
+#     deal_status = models.CharField(max_length=50, choices=[("WON", "Won"), ("LOST", "Lost"), ("ONGOING", "Ongoing")])
+#     expected_close_date = models.DateField(null=True, blank=True)
+#     start_date = models.DateField(null=True, blank=True)
+
+#     @classmethod
+#     def deal_progression_count(cls, deal_id):
+#         # Filter all deals for the given deal_id where current stage is not null
+#         all_merchants = cls.objects.filter(deal__unique_id=deal_id, current_stage__isnull=False)
+
+#         # Get distinct current stages
+#         unique_stage = all_merchants.values("current_stage").distinct()
+
+#         data = []
+#         for stage in unique_stage:
+#             data.append(stage.get("current_stage"))
+
+#         all_count = {}
+#         total_count = cls.objects.filter(deal__unique_id=deal_id).count() or 0
+
+#         for stage_id in data:
+#             # Get the count of deals for the current stage
+#             this_count = all_merchants.filter(current_stage__id=stage_id).count() or 0
+
+#             # Get the stage name from the Stage model
+#             stage_name = Stage.objects.filter(id=stage_id).values_list("name", flat=True).first()
+
+#             # Update the all_count dictionary with the stage name
+#             all_count.update({stage_name: this_count})
+
+#         this_data = {
+#             "total_count": total_count,
+#             "data": all_count
+#         }
+
+#         return this_data
+
+#     @classmethod
+#     def deal_count(cls, deal_id):
+#         # Filter all deals for where current stage is not null
+#         all_deals = cls.objects.filter(deal__unique_id=deal_id, current_stage__isnull=False)
+
+#         # Get distinct current stages
+#         unique_stage = all_deals.values("current_stage").distinct()
+
+#         data = []
+#         for stage in unique_stage:
+#             data.append(stage.get("current_stage"))
+
+#         all_count = {}
+#         total_count = cls.objects.filter(deal__unique_id=deal_id).count() or 0
+
+#         for stage_id in data:
+#             # Get the count of all deals for the current stage
+#             this_count = all_deals.filter(current_stage_id=stage_id).count() or 0
+#             # Get the stage name from the Stage model
+#             stage_name = Stage.objects.filter(id=stage_id).values_list("name", flat=True).first()
+#             # Update the all_count dictionary with the stage name
+#             all_count.update({stage_name: this_count})
+
+#             this_data = {
+#                 "total_count": total_count,
+#                 "data": all_count
+#             } 
+
+#             return this_data
+        
+#     def update_deal_status(self):
+#         """
+#         Updates the deal status based on the deal's start date and expected close date.
+#         """
+#         now = datetime.now().date()
+
+#         if self.expected_close_date and self.expected_close_date < now:
+#             self.deal_status = "LOST"
+#         elif self.start_date and self.start_date <= now <= self.expected_close_date:
+#             self.deal_status = "WON"
+#         elif self.start_date and now < self.start_date:
+#             self.deal_status = "ONGOING"
+
+#         self.save()
+
+#     def __str__(self):
+#         return f"Deal for {self.deal_title}"
 
 
 # class TeamMemberPermission(models.Model):

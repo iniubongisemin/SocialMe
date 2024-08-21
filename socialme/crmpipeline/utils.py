@@ -19,7 +19,7 @@ def stage_notification(stage_instance, deal):
     
     
     context = {
-        "deal_name": deal.name,
+        "deal_name": deal.deal_title,
     }
 
     # Create a Template object with the decoded custom message
@@ -28,7 +28,7 @@ def stage_notification(stage_instance, deal):
     # Render the email message with the context
     email_message = email_template.render(Context(context))
 
-    send_email(subject, email_message, to_email, deal_id=deal.id)
+    send_email(subject, email_message, to_email, deal_id=deal.deal_id)
 
 
 class DataResponse:
