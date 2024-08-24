@@ -6,7 +6,6 @@ from django.conf import settings
 # from string import Template
 
 
-
 @shared_task
 def send_email(recipient: str, subject: str, template_dir: str, use_template=True, body=None, **substitute):
     # if use_template:

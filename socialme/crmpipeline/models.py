@@ -111,7 +111,7 @@ class Deal(models.Model):
     product = models.CharField(max_length=100, choices=PRODUCT_VERTICALS_CHOICES)
     start_date = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    expected_close_date = models.DateTimeField(auto_now_add=True)
+    expiry_date = models.DateTimeField(null=True)
     email = models.EmailField()
     label = models.CharField(
         max_length=100,
@@ -154,7 +154,7 @@ class Deal(models.Model):
             product=validated_data.get("product"), 
             start_date=validated_data.get("start_date"), 
             updated_at=validated_data.get("updated_at"), 
-            expected_close_date=validated_data.get("expected_close_date"), 
+            expiry_date=validated_data.get("expiry_date"), 
             email=validated_data.get("email"), 
             label=validated_data.get("label"), 
             deal_status=validated_data.get("deal_status"), 
@@ -234,13 +234,13 @@ class Deal(models.Model):
 
     def update_deal_status(self):
         """
-        Updates the deal status based on the deal's start date and expected close date.
+        Updates the deal status based on the deal's start date and expiry date.
         """
         now = datetime.now().date()
 
-        if self.expected_close_date and self.expected_close_date < now:
+        if self.expiry_date and self.expiry_date < now:
             self.deal_status = "LOST"
-        elif self.start_date and self.start_date <= now <= self.expected_close_date:
+        elif self.start_date and self.start_date <= now <= self.expiry_date:
             self.deal_status = "WON"
         elif self.start_date and now < self.start_date:
             self.deal_status = "ONGOING"

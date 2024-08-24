@@ -43,7 +43,7 @@ class DealSerializer(serializers.ModelSerializer):
         fields = (
             'deal_title', 'description', 'merchant', 'sales_officer', 'phone_num', 'user',
             'industry', 'current_stage', 'contact_person', 'pipeline',  
-            'value', 'product', 'start_date', 'updated_at', 'expected_close_date', 
+            'value', 'product', 'start_date', 'updated_at', 'expiry_date', 
             'email', 'label', 'deal_status',
             "label", "deal_status" 
              # 'team_member', 'deal_id', 'trail', 'pipeline_type', 
@@ -54,7 +54,7 @@ class CreateDealSerializer(serializers.ModelSerializer):
         model = Deal
         fields = (
             'deal_title', 'description', 'merchant', 'sales_officer', 'phone_num', 'user',
-            'industry', 'current_stage', 'value', 'product', 'start_date', 'updated_at', 'expected_close_date', 
+            'industry', 'current_stage', 'value', 'product', 'start_date', 'updated_at', 'expiry_date', 
             'email', 'label', 'deal_status', 
         )
         
